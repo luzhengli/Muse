@@ -1,0 +1,44 @@
+{
+  "features": [
+    {
+      "id": "feat-001",
+      "name": "Project Scaffold",
+      "description": "Create or confirm the Bun + Next.js + TypeScript + Tailwind CSS v4 + shadcn/ui + SQLite + Vercel AI SDK scaffold.",
+      "dependencies": [],
+      "status": "not-started",
+      "evidence": "Current repository only contains harness files. Run ./init.sh after package.json and source scaffold exist."
+    },
+    {
+      "id": "feat-002",
+      "name": "Design System Integration",
+      "description": "Fill DESIGN.md during the first concrete UI task, then map finalized tokens into Tailwind CSS v4 theme variables and shadcn/ui styling conventions.",
+      "dependencies": ["feat-001"],
+      "status": "not-started",
+      "evidence": "DESIGN.md is intentionally a placeholder for initial setup. Validate it after real tokens are added."
+    },
+    {
+      "id": "feat-003",
+      "name": "Core Product Feature",
+      "description": "Implement the first concrete Muse user-facing workflow after requirements are provided.",
+      "dependencies": ["feat-002"],
+      "status": "not-started",
+      "evidence": ""
+    },
+    {
+      "id": "feat-004",
+      "name": "Verification Coverage",
+      "description": "Add or confirm type checks, linting, build checks, tests, and manual verification for the active feature.",
+      "dependencies": ["feat-003"],
+      "status": "not-started",
+      "evidence": ""
+    },
+    {
+      "id": "feat-005",
+      "name": "Cleanup and Handoff",
+      "description": "Record verification evidence, update progress.md and session-handoff.md, and leave a clear next-session path.",
+      "dependencies": ["feat-004"],
+      "status": "not-started",
+      "evidence": ""
+    }
+  ]
+}
