@@ -1,0 +1,18 @@
+DESIGN.md
+  h_d2a859795175fc 1-74
+.trae/rules/git-commit-message.md
+  h_d2a859795175fc 1-6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "4f0fa64a1c2db61853aa07bbb28d66f86fd736ca",
+  "prompts": {},
+  "humans": {
+    "h_d2a859795175fc": {
+      "author": "liluzheng <liluzheng@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
