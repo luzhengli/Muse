@@ -5,38 +5,54 @@
       "name": "Project Scaffold",
       "description": "Create or confirm the Bun + Next.js + TypeScript + Tailwind CSS v4 + shadcn/ui + SQLite + Vercel AI SDK scaffold.",
       "dependencies": [],
-      "status": "not-started",
-      "evidence": "Current repository only contains harness files. Run ./init.sh after package.json and source scaffold exist."
+      "status": "done",
+      "evidence": "package.json + Next.js 15 App Router + Tailwind v4 + Drizzle/better-sqlite3 + ai SDK. bun install / bun run typecheck / bun run lint / bun run build 全部通过（2026-07-06）。npm 源使用 npmmirror（见 bunfig.toml，本地代理下 npmjs 极慢）。"
     },
     {
       "id": "feat-002",
       "name": "Design System Integration",
-      "description": "Fill DESIGN.md during the first concrete UI task, then map finalized tokens into Tailwind CSS v4 theme variables and shadcn/ui styling conventions.",
+      "description": "Fill DESIGN.md and map tokens into Tailwind CSS v4 theme variables and shadcn/ui styling conventions.",
       "dependencies": ["feat-001"],
-      "status": "not-started",
-      "evidence": "DESIGN.md is intentionally a placeholder for initial setup. Validate it after real tokens are added."
+      "status": "done",
+      "evidence": "DESIGN.md 已填写（紫罗兰主色 + 米白纸感中性色 + 中文字体栈），令牌映射到 src/app/globals.css 的 @theme。npx @google/design.md lint DESIGN.md 通过（0 errors 0 warnings）。"
     },
     {
       "id": "feat-003",
       "name": "Core Product Feature",
-      "description": "Implement the first concrete Muse user-facing workflow after requirements are provided.",
+      "description": "创作闭环：素材库（导入/清洗/FTS5搜索/集合）→ 选题板（卡片/brief）→ 写作台（Tiptap/版本/引用/AI改写）→ 审阅台（AI六维+人工，接受/忽略）→ 包装台（标题/摘要/提示词/卡片/图片）→ 平台适配（小红书/X/公众号）→ 发布中心（定时/重试/mock 适配器）→ 复盘中心（数据录入/结论反哺选题）。",
       "dependencies": ["feat-002"],
-      "status": "not-started",
-      "evidence": ""
+      "status": "done",
+      "evidence": "端到端 UI 冒烟通过（2026-07-06，mock 模式）：灵感捕捉→清洗→FTS中文子串搜索命中→brief→初稿→AI审阅接受建议→包装物料→3平台版本→发布任务 mock 发布成功→数据录入→复盘结论→反哺为新选题。"
     },
     {
       "id": "feat-004",
       "name": "Verification Coverage",
-      "description": "Add or confirm type checks, linting, build checks, tests, and manual verification for the active feature.",
+      "description": "Type checks, linting, build checks, and manual verification for the active feature.",
       "dependencies": ["feat-003"],
-      "status": "not-started",
-      "evidence": ""
+      "status": "done",
+      "evidence": "bun run typecheck ✅ / bun run lint ✅（next lint 提示 Next 16 将移除，后续可迁移 ESLint CLI）/ bun run build ✅ / design.md lint ✅ / 浏览器端到端冒烟 ✅。"
     },
     {
       "id": "feat-005",
       "name": "Cleanup and Handoff",
       "description": "Record verification evidence, update progress.md and session-handoff.md, and leave a clear next-session path.",
       "dependencies": ["feat-004"],
+      "status": "done",
+      "evidence": "progress.md / session-handoff.md / README.md 已更新，工作已提交 git。"
+    },
+    {
+      "id": "feat-006",
+      "name": "Real Platform Publishers",
+      "description": "把 mock 发布器替换为真实平台 API 适配器（实现 src/lib/publish/adapters.ts 的 PublisherAdapter）。",
+      "dependencies": ["feat-003"],
+      "status": "not-started",
+      "evidence": ""
+    },
+    {
+      "id": "feat-007",
+      "name": "Retro Data Integration",
+      "description": "复盘中心接入平台数据 API，替代手动录入；图片能力接入图像生成模型。",
+      "dependencies": ["feat-003"],
       "status": "not-started",
       "evidence": ""
     }

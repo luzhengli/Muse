@@ -1,0 +1,92 @@
+@import "tailwindcss";
+
+@theme {
+  /* Muse 设计令牌 —— 与 DESIGN.md 保持同步 */
+  --color-background: #faf9f7;
+  --color-surface: #ffffff;
+  --color-foreground: #1c1917;
+  --color-muted: #78716c;
+  --color-muted-bg: #f5f4f2;
+  --color-border: #e7e5e4;
+  --color-primary: #7c3aed;
+  --color-primary-hover: #6d28d9;
+  --color-primary-soft: #f3efff;
+  --color-success: #059669;
+  --color-success-soft: #ecfdf5;
+  --color-warning: #d97706;
+  --color-warning-soft: #fffbeb;
+  --color-danger: #dc2626;
+  --color-danger-soft: #fef2f2;
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+
+  --radius-card: 0.75rem;
+  --radius-control: 0.5rem;
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+}
+
+/* Tiptap 编辑器排版 */
+.tiptap {
+  outline: none;
+  min-height: 24rem;
+  line-height: 1.8;
+}
+.tiptap h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 1.2em 0 0.5em;
+}
+.tiptap h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 1.2em 0 0.5em;
+}
+.tiptap h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 1em 0 0.4em;
+}
+.tiptap p {
+  margin: 0.6em 0;
+}
+.tiptap ul,
+.tiptap ol {
+  padding-left: 1.4em;
+  margin: 0.6em 0;
+}
+.tiptap ul {
+  list-style: disc;
+}
+.tiptap ol {
+  list-style: decimal;
+}
+.tiptap blockquote {
+  border-left: 3px solid var(--color-primary);
+  padding-left: 1em;
+  color: var(--color-muted);
+  margin: 0.8em 0;
+}
+.tiptap ::selection {
+  background: var(--color-primary-soft);
+}
+
+/* 富文本只读渲染（审阅台等） */
+.prose-muse h2 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin: 1.2em 0 0.4em;
+}
+.prose-muse p {
+  margin: 0.5em 0;
+  line-height: 1.8;
+}
+.prose-muse ul {
+  list-style: disc;
+  padding-left: 1.4em;
+}

@@ -2,59 +2,58 @@
 
 ## Current State
 
-**Last Updated:** 2026-07-05
-**Session ID:** harness-initialization
-**Active Feature:** feat-001 - Project Scaffold
+**Last Updated:** 2026-07-06
+**Session ID:** mvp-build-01
+**Active Feature:** 全部 MVP 特性完成（feat-001 ~ feat-005 done）
 
 ## Status
 
 ### What's Done
 
-- [x] Created minimal agent harness files.
-- [x] Added Muse-specific stack constraints to `AGENTS.md`.
-- [x] Added `DESIGN.md` as a first-initialization placeholder.
-
-### What's In Progress
-
-- [ ] Project scaffold is not present yet.
-  - Details: Add `package.json`, Next.js app files, Tailwind CSS v4 setup, shadcn/ui setup, SQLite integration, and Vercel AI SDK dependencies.
-  - Blockers: Product requirements and scaffold files are not yet available in the repository.
+- [x] 完整脚手架：Bun + Next.js 15 (App Router) + TS + Tailwind v4 + Drizzle/SQLite + Vercel AI SDK。
+- [x] 数据库 schema（15 张表）+ 启动时幂等建表 + FTS5 中文全文索引（CJK 逐字分词 + 短语匹配）。
+- [x] AI 层：可配置 provider（anthropic/openai/openai-compatible），无密钥自动降级确定性 mock。
+- [x] 七大模块页面 + 快速灵感捕捉，全中文 UI。
+- [x] 发布适配器接口 + mock 发布器（可配置失败率 MUSE_MOCK_PUBLISH_FAIL_RATE）。
+- [x] DESIGN.md 填写并通过 design.md lint；令牌映射到 globals.css @theme。
+- [x] 验证：typecheck / lint / build / 浏览器端到端冒烟（完整闭环，mock 模式）。
 
 ### What's Next
 
-1. Create or import the Muse Next.js project scaffold.
-2. Add scripts for `typecheck`, `lint`, and `build` so `./init.sh` can run.
-3. Fill `DESIGN.md` during the first concrete UI task, then map tokens into Tailwind CSS v4 theme variables.
+1. feat-006：接入真实平台 API（实现 PublisherAdapter）。
+2. feat-007：复盘数据 API + 图像生成模型接入。
+3. 可选：next lint → ESLint CLI 迁移（Next 16 前）；zod 升 v4。
 
 ## Blockers / Risks
 
-- [ ] Missing scaffold: `./init.sh` will stop until `package.json` exists.
-- [ ] Missing requirements: First user-facing feature remains intentionally undefined.
+- 无阻塞。注意：本机代理环境下 npmjs 官方源极慢，bunfig.toml 已切 npmmirror；如换网络环境可删除。
+- data/ 目录（SQLite + 上传）在 .gitignore 中，属本地数据。
 
 ## Decisions Made
 
-- **Harness file set**: Use `AGENTS.md`, `feature_list.json`, `progress.md`, `session-handoff.md`, `init.sh`, and `DESIGN.md`.
-  - Context: Keeps agent startup, scope, verification, lifecycle, and visual guidance in files.
-  - Alternatives considered: A single long instruction file was avoided because small artifacts are easier for agents to follow.
-- **Design placeholder**: Keep `DESIGN.md` empty of real visual decisions during first initialization.
-  - Context: The user requested that real design tokens and rationale be filled during the first actual task.
-  - Alternatives considered: Preselecting colors, typography, radius, and component styling was avoided to prevent premature design lock-in.
+- **运行时建表而非 drizzle 迁移文件**：src/db/index.ts 启动时执行幂等 BOOTSTRAP_SQL，保证 clone 后 bun dev 零配置可跑；schema 演进时需同步更新 schema.ts 与 BOOTSTRAP_SQL（或改用 drizzle-kit generate/migrate）。
+- **FTS5 中文方案**：unicode61 分词器对连续 CJK 无法子串检索，写入/查询均在 CJK 字符间插空格（src/db/fts.ts segmentCjk），查询用短语匹配。
+- **AI mock 降级**：所有 AI 函数 try/catch 真实模型失败或未配置时回落到 src/lib/ai/mock.ts 的确定性生成，闭环离线可演示。
+- **不使用 Radix**：MVP 用原生元素 + 少量客户端组件，package.json 中 @radix-ui/* 仍保留（未使用，后续可清理或启用）。
 
 ## Files Modified This Session
 
-- `AGENTS.md` - Agent startup, scope, stack, and verification rules.
-- `feature_list.json` - Restartable feature sequence and status source of truth.
-- `progress.md` - Current state and next actions.
-- `session-handoff.md` - Next-session startup context.
-- `init.sh` - Verification entrypoint.
-- `DESIGN.md` - Placeholder for future visual identity and design tokens.
+- 配置：package.json, tsconfig.json, next.config.ts, postcss.config.mjs, .eslintrc.json, drizzle.config.ts, bunfig.toml, .env.example, .gitignore, .claude/launch.json
+- 数据层：src/db/{schema,index,fts}.ts
+- AI/领域层：src/lib/ai/*, src/lib/platforms.ts, src/lib/publish/adapters.ts, src/lib/{utils,labels}.ts
+- Actions：src/actions/*（8 个模块）
+- UI：src/app/**（12 个页面）+ src/components/**
+- 文档：DESIGN.md, README.md, feature_list.json, progress.md, session-handoff.md
 
 ## Evidence of Completion
 
-- [ ] Harness validation: `node path/to/harness-creator/scripts/validate-harness.mjs --target .`
-- [ ] Design lint: `npx @google/design.md lint DESIGN.md` after real tokens are added.
-- [ ] Full project verification: `./init.sh` after scaffold exists.
+- [x] bun run typecheck — 通过（2026-07-06）
+- [x] bun run lint — 通过（含 next lint 弃用提示，不影响结果）
+- [x] bun run build — 通过（12 条路由，全部 dynamic）
+- [x] npx @google/design.md lint DESIGN.md — 0 errors / 0 warnings
+- [x] 浏览器端到端冒烟：灵感→素材→清洗→FTS搜索→选题 brief→初稿→AI 审阅→包装→3 平台版本→mock 发布→数据录入→复盘→反哺新选题
 
 ## Notes for Next Session
 
-Start by reading `AGENTS.md`, `DESIGN.md`, and `feature_list.json`. Do not mark `feat-001` done until the real Next.js scaffold exists and `./init.sh` can run against it. Do not fill `DESIGN.md` until a concrete UI task requires visual decisions.
+从 ./init.sh 开始（全部检查应通过）。挑 feat-006 或 feat-007。
+真实平台接入只需实现 src/lib/publish/adapters.ts 的 PublisherAdapter 接口并替换 ADAPTERS 条目。

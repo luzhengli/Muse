@@ -1,0 +1,4 @@
+# 本地网络环境下 npmjs 直连/代理均较慢，使用 npmmirror 镜像加速安装。
+# 如需切回官方源，删除本文件或改为 https://registry.npmjs.org
+[install]
+registry = "https://registry.npmmirror.com"
