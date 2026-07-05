@@ -16,7 +16,7 @@ import type {
   VariantGen,
 } from "./types";
 
-export { aiConfigured } from "./provider";
+export { aiConfigured, IMAGE_GEN_SUPPORTED } from "./provider";
 export type * from "./types";
 
 function materialContext(materials: MaterialInput[], maxEach = 800): string {
@@ -37,6 +37,7 @@ export async function aiClean(title: string, raw: string): Promise<CleanGen> {
   try {
     const { object } = await generateObject({
       model,
+      mode: "json",
       schema: z.object({
         summary: z.string().describe("120 字以内的中文摘要"),
         tags: z.array(z.string()).max(6).describe("3-6 个主题标签"),
@@ -62,6 +63,7 @@ export async function aiTopics(
   try {
     const { object } = await generateObject({
       model,
+      mode: "json",
       schema: z.object({
         topics: z.array(
           z.object({
@@ -97,6 +99,7 @@ export async function aiBrief(
   try {
     const { object } = await generateObject({
       model,
+      mode: "json",
       schema: z.object({
         audience: z.string(),
         platforms: z.array(z.string()),
@@ -165,6 +168,30 @@ export async function aiRewrite(text: string, mode: RewriteMode): Promise<string
   }
 }
 
+/** 按审阅建议润色一段文本（保留输入格式：纯文本进纯文本出，HTML 进 HTML 出） */
+export async function aiPolishWithSuggestion(
+  content: string,
+  suggestion: string,
+  isHtml: boolean,
+): Promise<string> {
+  const model = getModel();
+  if (!model) return mock.mockRewrite(content, "rewrite");
+  try {
+    const { text: out } = await generateText({
+      model,
+      prompt: `请按照下面的审阅建议修改内容。只输出修改后的${isHtml ? "正文 HTML（保持原有标签结构，不要 markdown，不要 <html> 外层）" : "文字，不要解释"}。
+
+审阅建议：${suggestion}
+
+待修改内容：
+${content}`,
+    });
+    return out.replace(/```html?|```/g, "").trim();
+  } catch {
+    return mock.mockRewrite(content, "rewrite");
+  }
+}
+
 /** AI 审阅：事实/结构/风格/安全/平台合规/润色 */
 export async function aiReview(
   text: string,
@@ -178,6 +205,7 @@ export async function aiReview(
   try {
     const { object } = await generateObject({
       model,
+      mode: "json",
       schema: z.object({
         summary: z.string(),
         findings: z.array(
@@ -204,6 +232,7 @@ export async function aiPackaging(title: string, text: string): Promise<Packagin
   try {
     const { object } = await generateObject({
       model,
+      mode: "json",
       schema: z.object({
         titleCandidates: z.array(z.string()).min(3).max(6),
         summary: z.string().describe("120 字以内摘要"),
@@ -231,6 +260,7 @@ export async function aiVariant(
   try {
     const { object } = await generateObject({
       model,
+      mode: "json",
       schema: z.object({
         title: z.string().describe(spec.titleMaxLen ? `标题，不超过 ${spec.titleMaxLen} 字` : "标题"),
         content: z.string().describe(`正文，符合${spec.name}风格：${spec.style}；长度不超过 ${spec.contentMaxLen} 字`),
@@ -254,6 +284,7 @@ export async function aiRetroTopic(insights: string, hint: string): Promise<Topi
   try {
     const { object } = await generateObject({
       model,
+      mode: "json",
       schema: z.object({
         title: z.string(),
         targetAudience: z.string(),

@@ -187,7 +187,7 @@ export default async function PackagingPage({
         <CardHeader>
           <CardTitle>本地图片资源（{assetRows.length}）</CardTitle>
           <CardDescription>
-            用提示词在外部工具生成图片后，上传到这里与文章关联，保存在 data/assets。
+            AI 生图暂不支持（当前模型只做文本生成）。用提示词在外部工具生成图片后，上传到这里与文章关联，保存在 data/assets。
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">

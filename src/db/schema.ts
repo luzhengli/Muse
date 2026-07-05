@@ -101,6 +101,10 @@ export const articles = sqliteTable("articles", {
     onDelete: "set null",
   }),
   title: text("title").notNull(),
+  /** 包装台应用的文章摘要（元信息） */
+  summary: text("summary").notNull().default(""),
+  /** 包装台设置的封面图（本地资产） */
+  coverAssetId: integer("cover_asset_id"),
   status: text("status", {
     enum: ["draft", "reviewing", "packaged", "ready", "published"],
   })

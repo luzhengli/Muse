@@ -63,6 +63,8 @@ CREATE TABLE IF NOT EXISTS articles (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   topic_id INTEGER REFERENCES topics(id) ON DELETE SET NULL,
   title TEXT NOT NULL,
+  summary TEXT NOT NULL DEFAULT '',
+  cover_asset_id INTEGER,
   status TEXT NOT NULL DEFAULT 'draft',
   created_at INTEGER NOT NULL DEFAULT (unixepoch()),
   updated_at INTEGER NOT NULL DEFAULT (unixepoch())
@@ -198,6 +200,16 @@ function createDb() {
   sqlite.pragma("journal_mode = WAL");
   sqlite.pragma("foreign_keys = ON");
   sqlite.exec(BOOTSTRAP_SQL);
+  // 旧库兼容：文章元信息新增列
+  const articleCols = sqlite
+    .prepare("PRAGMA table_info(articles)")
+    .all() as { name: string }[];
+  if (!articleCols.some((c) => c.name === "summary")) {
+    sqlite.exec("ALTER TABLE articles ADD COLUMN summary TEXT NOT NULL DEFAULT ''");
+  }
+  if (!articleCols.some((c) => c.name === "cover_asset_id")) {
+    sqlite.exec("ALTER TABLE articles ADD COLUMN cover_asset_id INTEGER");
+  }
   return { sqlite, db: drizzle(sqlite, { schema }) };
 }
 

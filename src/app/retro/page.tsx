@@ -11,36 +11,111 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input, Textarea, Select, Label } from "@/components/ui/input";
+import { ListFilter } from "@/components/list-filter";
+import { Timeline } from "@/components/timeline";
 import { PLATFORM_IDS, platformName } from "@/lib/platforms";
-import { fmtTime } from "@/lib/utils";
+import { fmtTime, groupByDay, inDateRange, parseDateRange } from "@/lib/utils";
+import type { RetroNote } from "@/db";
 
 export const dynamic = "force-dynamic";
 
 export default async function RetroPage({
   searchParams,
 }: {
-  searchParams: Promise<{ taskId?: string }>;
+  searchParams: Promise<{
+    taskId?: string;
+    q?: string;
+    platform?: string;
+    from?: string;
+    to?: string;
+    view?: string;
+  }>;
 }) {
-  const { taskId } = await searchParams;
+  const { taskId, q, platform, from, to, view } = await searchParams;
   const preselectedTask = taskId
     ? await db.query.publishTasks.findFirst({
         where: eq(publishTasks.id, Number(taskId)),
       })
     : null;
 
-  const results = await db
+  const allResults = await db
     .select()
     .from(publishResults)
     .orderBy(desc(publishResults.recordedAt));
-  const notes = await db
+  let notes = await db
     .select()
     .from(retroNotes)
     .orderBy(desc(retroNotes.createdAt));
+
+  const range = parseDateRange(from, to);
+  let results = allResults;
+  if (platform) results = results.filter((r) => r.platform === platform);
+  if (q?.trim()) {
+    const kw = q.trim();
+    results = results.filter(
+      (r) => r.commentFeedback.includes(kw) || r.externalUrl.includes(kw),
+    );
+    notes = notes.filter(
+      (n) =>
+        n.title.includes(kw) || n.insights.includes(kw) || n.nextTopicHint.includes(kw),
+    );
+  }
+  if (range.fromUnix !== null || range.toUnix !== null) {
+    results = results.filter((r) => inDateRange(r.recordedAt, range));
+    notes = notes.filter((n) => inDateRange(n.createdAt, range));
+  }
   const publishedTasks = await db
     .select()
     .from(publishTasks)
     .where(eq(publishTasks.status, "published"))
     .orderBy(desc(publishTasks.publishedAt));
+
+  function renderNoteCard(n: RetroNote) {
+    return (
+      <Card key={n.id}>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold">{n.title}</span>
+                <span className="text-xs text-(--color-muted)">{fmtTime(n.createdAt)}</span>
+                <div className="ml-auto flex gap-1.5">
+                  {n.convertedTopicId ? (
+                    <Link href="/topics">
+                      <Badge tone="success">已转为选题 #{n.convertedTopicId}</Badge>
+                    </Link>
+                  ) : (
+                    <form
+                      action={async () => {
+                        "use server";
+                        await convertRetroToTopic(n.id);
+                      }}
+                    >
+                      <Button size="sm" variant="secondary">
+                        反哺为新选题 →
+                      </Button>
+                    </form>
+                  )}
+                  <form
+                    action={async () => {
+                      "use server";
+                      await deleteRetroNote(n.id);
+                    }}
+                  >
+                    <Button size="sm" variant="ghost">
+                      删除
+                    </Button>
+                  </form>
+                </div>
+              </div>
+              <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed">{n.insights}</p>
+              {n.nextTopicHint && (
+                <p className="mt-1 text-xs text-(--color-muted)">
+                  下一步方向：{n.nextTopicHint}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-5xl space-y-4">
@@ -50,6 +125,12 @@ export default async function RetroPage({
           记录发布结果与互动数据，沉淀可复用经验，并一键反哺为下一轮选题。
         </p>
       </div>
+
+      <ListFilter
+        basePath="/retro"
+        keywordPlaceholder="按复盘标题 / 结论 / 反馈摘录搜索"
+        platformOptions={PLATFORM_IDS.map((p) => ({ value: p, label: platformName(p) }))}
+      />
 
       <div className="grid grid-cols-2 gap-4">
         {/* 录入发布数据 */}
@@ -126,7 +207,7 @@ export default async function RetroPage({
                 <Input name="title" placeholder="复盘标题" className="flex-1" />
                 <Select name="resultId" className="w-44">
                   <option value="">不关联数据记录</option>
-                  {results.map((r) => (
+                  {allResults.map((r) => (
                     <option key={r.id} value={r.id}>
                       #{r.id} {platformName(r.platform)} · 阅读{r.views}
                     </option>
@@ -190,59 +271,24 @@ export default async function RetroPage({
       )}
 
       {/* 复盘结论列表 */}
-      <div className="space-y-2">
-        {notes.map((n) => (
-          <Card key={n.id}>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold">{n.title}</span>
-                <span className="text-xs text-(--color-muted)">{fmtTime(n.createdAt)}</span>
-                <div className="ml-auto flex gap-1.5">
-                  {n.convertedTopicId ? (
-                    <Link href="/topics">
-                      <Badge tone="success">已转为选题 #{n.convertedTopicId}</Badge>
-                    </Link>
-                  ) : (
-                    <form
-                      action={async () => {
-                        "use server";
-                        await convertRetroToTopic(n.id);
-                      }}
-                    >
-                      <Button size="sm" variant="secondary">
-                        反哺为新选题 →
-                      </Button>
-                    </form>
-                  )}
-                  <form
-                    action={async () => {
-                      "use server";
-                      await deleteRetroNote(n.id);
-                    }}
-                  >
-                    <Button size="sm" variant="ghost">
-                      删除
-                    </Button>
-                  </form>
-                </div>
-              </div>
-              <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed">{n.insights}</p>
-              {n.nextTopicHint && (
-                <p className="mt-1 text-xs text-(--color-muted)">
-                  下一步方向：{n.nextTopicHint}
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        ))}
-        {notes.length === 0 && (
-          <Card>
-            <CardContent className="py-10 text-center text-sm text-(--color-muted)">
-              还没有复盘结论。数据录入后写下经验，形成「发布 → 复盘 → 新选题」的闭环。
-            </CardContent>
-          </Card>
-        )}
-      </div>
+      {notes.length === 0 ? (
+        <Card>
+          <CardContent className="py-10 text-center text-sm text-(--color-muted)">
+            {q || platform || from || to
+              ? "没有匹配的复盘结论。"
+              : "还没有复盘结论。数据录入后写下经验，形成「发布 → 复盘 → 新选题」的闭环。"}
+          </CardContent>
+        </Card>
+      ) : view === "timeline" ? (
+        <Timeline
+          groups={groupByDay(notes, (n) => n.createdAt).map((g) => ({
+            label: g.label,
+            children: g.items.map(renderNoteCard),
+          }))}
+        />
+      ) : (
+        <div className="space-y-2">{notes.map(renderNoteCard)}</div>
+      )}
     </div>
   );
 }

@@ -12,7 +12,9 @@
       "id": "feat-002",
       "name": "Design System Integration",
       "description": "Fill DESIGN.md and map tokens into Tailwind CSS v4 theme variables and shadcn/ui styling conventions.",
-      "dependencies": ["feat-001"],
+      "dependencies": [
+        "feat-001"
+      ],
       "status": "done",
       "evidence": "DESIGN.md 已填写（紫罗兰主色 + 米白纸感中性色 + 中文字体栈），令牌映射到 src/app/globals.css 的 @theme。npx @google/design.md lint DESIGN.md 通过（0 errors 0 warnings）。"
     },
@@ -20,7 +22,9 @@
       "id": "feat-003",
       "name": "Core Product Feature",
       "description": "创作闭环：素材库（导入/清洗/FTS5搜索/集合）→ 选题板（卡片/brief）→ 写作台（Tiptap/版本/引用/AI改写）→ 审阅台（AI六维+人工，接受/忽略）→ 包装台（标题/摘要/提示词/卡片/图片）→ 平台适配（小红书/X/公众号）→ 发布中心（定时/重试/mock 适配器）→ 复盘中心（数据录入/结论反哺选题）。",
-      "dependencies": ["feat-002"],
+      "dependencies": [
+        "feat-002"
+      ],
       "status": "done",
       "evidence": "端到端 UI 冒烟通过（2026-07-06，mock 模式）：灵感捕捉→清洗→FTS中文子串搜索命中→brief→初稿→AI审阅接受建议→包装物料→3平台版本→发布任务 mock 发布成功→数据录入→复盘结论→反哺为新选题。"
     },
@@ -28,7 +32,9 @@
       "id": "feat-004",
       "name": "Verification Coverage",
       "description": "Type checks, linting, build checks, and manual verification for the active feature.",
-      "dependencies": ["feat-003"],
+      "dependencies": [
+        "feat-003"
+      ],
       "status": "done",
       "evidence": "bun run typecheck ✅ / bun run lint ✅（next lint 提示 Next 16 将移除，后续可迁移 ESLint CLI）/ bun run build ✅ / design.md lint ✅ / 浏览器端到端冒烟 ✅。"
     },
@@ -36,7 +42,9 @@
       "id": "feat-005",
       "name": "Cleanup and Handoff",
       "description": "Record verification evidence, update progress.md and session-handoff.md, and leave a clear next-session path.",
-      "dependencies": ["feat-004"],
+      "dependencies": [
+        "feat-004"
+      ],
       "status": "done",
       "evidence": "progress.md / session-handoff.md / README.md 已更新，工作已提交 git。"
     },
@@ -44,7 +52,9 @@
       "id": "feat-006",
       "name": "Real Platform Publishers",
       "description": "把 mock 发布器替换为真实平台 API 适配器（实现 src/lib/publish/adapters.ts 的 PublisherAdapter）。",
-      "dependencies": ["feat-003"],
+      "dependencies": [
+        "feat-003"
+      ],
       "status": "not-started",
       "evidence": ""
     },
@@ -52,9 +62,93 @@
       "id": "feat-007",
       "name": "Retro Data Integration",
       "description": "复盘中心接入平台数据 API，替代手动录入；图片能力接入图像生成模型。",
-      "dependencies": ["feat-003"],
+      "dependencies": [
+        "feat-003"
+      ],
       "status": "not-started",
       "evidence": ""
+    },
+    {
+      "id": "feat-008",
+      "name": "DeepSeek Real AI Integration",
+      "description": "DeepSeek 实接入：.env.local 携带密钥（已从 env.txt 迁移并删除原文件），默认 MUSE_AI_PROVIDER=openai-compatible + https://api.deepseek.com + deepseek-v4-flash；全部文本 AI 走真实模型（generateObject 用 JSON mode 兼容 thinking 模型），失败降级 mock；AI 生图明确标记不支持（IMAGE_GEN_SUPPORTED=false + 包装台文案）。",
+      "dependencies": [
+        "feat-003"
+      ],
+      "status": "done",
+      "evidence": "冒烟脚本对 aiClean/aiTopics/aiBrief/aiDraft/aiRewrite/aiReview/aiPackaging/aiVariant/aiRetroTopic 九项能力逐一真实调用 DeepSeek 通过（2026-07-06）；UI 内 AI 审阅、AI 润色、包装生成亦验证为真实模型输出。.env.example 已更新为 DeepSeek 默认值。"
+    },
+    {
+      "id": "feat-009",
+      "name": "Unified Writing Workbench",
+      "description": "统一写作工作台：文章页左侧主画布 + 右侧「审阅/包装/版本/素材」四分区工作流面板（src/components/workbench/），共享 Tiptap 编辑器实例，审阅与包装结果可直接写回正文，减少路由切换（原审阅/包装/平台版本路由保留）。",
+      "dependencies": [
+        "feat-003"
+      ],
+      "status": "done",
+      "evidence": "浏览器验证：写作→审阅→AI 润色→插图→包装→图文预览全流程在 /articles/[id] 单页完成（2026-07-06）。"
+    },
+    {
+      "id": "feat-010",
+      "name": "Version Compare & Restore",
+      "description": "版本管理：任意勾选两个版本做行级 LCS 差异对比（纯文本 / HTML 源码两种模式，含备注与创建时间），支持从历史版本恢复为新版本（不覆盖历史）。",
+      "dependencies": [
+        "feat-009"
+      ],
+      "status": "done",
+      "evidence": "浏览器验证 v2→v4 对比显示 +2/-1 增删行；从 v3 恢复生成 v5 且编辑器内容自动同步（2026-07-06）。实现：src/lib/diff.ts + workbench/version-panel.tsx + restoreVersion action。"
+    },
+    {
+      "id": "feat-011",
+      "name": "Editor Images, Preview & Export",
+      "description": "编辑器图片与预览导出：工具栏上传/粘贴/拖拽图片自动存入 data/assets 并登记资产表，经 /api/assets/[name] 提供服务后插入正文；图文渲染预览（含封面与摘要）与 Markdown 源码预览；导出 .md / .html 文件。",
+      "dependencies": [
+        "feat-009"
+      ],
+      "status": "done",
+      "evidence": "浏览器验证：粘贴 canvas 生成的 PNG 自动上传为 illustration 资产并插入正文；图文预览渲染封面+标题+摘要+正文图；Markdown 预览含 ![](/api/assets/…) 语法（2026-07-06）。导出与预览共用 src/lib/html-md.ts 转换。"
+    },
+    {
+      "id": "feat-012",
+      "name": "Review Loop Closure",
+      "description": "审阅闭环：写作页右侧面板查看 AI/人工审阅建议；每条 open 建议支持忽略、人工已处理、AI 润色（有原文片段做片段替换、无则全文改写）；润色预览确认后写回编辑器并自动保存新版本、建议标记 accepted。",
+      "dependencies": [
+        "feat-008",
+        "feat-009"
+      ],
+      "status": "done",
+      "evidence": "浏览器验证：真实 DeepSeek 审阅落库 6 条建议；AI 润色全文改写预览→接受→保存 v7（备注「AI 润色：事实一致性」）→建议置 accepted（2026-07-06）。"
+    },
+    {
+      "id": "feat-013",
+      "name": "Packaging Loop Closure",
+      "description": "包装闭环：包装面板生成标题候选/摘要/配图提示词/图文卡片；标题一键采用、摘要应用为文章元信息（articles.summary）、卡片插入正文、提示词复制（标注 AI 生图暂不支持）、图片上传后可设为封面（articles.cover_asset_id）或插入正文；图文预览呈现包装后效果。",
+      "dependencies": [
+        "feat-008",
+        "feat-009"
+      ],
+      "status": "done",
+      "evidence": "浏览器验证：真实模型生成 6 个标题候选；采用标题+应用摘要写入 articles 表；上传图片设为封面并在图文预览渲染（2026-07-06）。"
+    },
+    {
+      "id": "feat-014",
+      "name": "Findability Upgrade",
+      "description": "信息查找升级：素材库/选题板/写作台/复盘中心统一接入 ListFilter（关键词、日期范围、状态、标签/平台）+ 列表/时间线双视图（Timeline 按自然日分组）。发布中心本轮未接外部 API、未改动。",
+      "dependencies": [
+        "feat-003"
+      ],
+      "status": "done",
+      "evidence": "浏览器验证：素材库 status=cleaned+时间线、选题板 platform=x 过滤+时间线、复盘中心时间线均正确（2026-07-06）。筛选状态全部在 URL search params。"
+    },
+    {
+      "id": "feat-015",
+      "name": "Collection Detail Page",
+      "description": "素材集合详情页 /materials/collections/[id]：集合说明、素材统计（数量/清洗进度）、聚合标签、素材卡片列表（清洗状态/标签/摘要）、由该集合生成的选题列表，并支持从集合继续生成选题。",
+      "dependencies": [
+        "feat-003"
+      ],
+      "status": "done",
+      "evidence": "浏览器验证：集合 1 详情显示 2 条素材、清洗进度 1/2、3 个已生成选题、生成选题按钮（2026-07-06）。素材库集合工具栏的集合名已链接到详情页。"
     }
   ]
 }

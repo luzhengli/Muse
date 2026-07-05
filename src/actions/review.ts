@@ -10,7 +10,7 @@ import {
   reviewFindings,
   type ReviewCategory,
 } from "@/db";
-import { aiReview } from "@/lib/ai";
+import { aiReview, aiPolishWithSuggestion } from "@/lib/ai";
 
 /** 对文章最新版本执行 AI 审阅 */
 export async function runAiReview(articleId: number, platformId?: string) {
@@ -84,6 +84,34 @@ export async function addHumanFinding(formData: FormData) {
     suggestion,
   });
   revalidatePath(`/articles/${articleId}/review`);
+  revalidatePath(`/articles/${articleId}`);
+}
+
+/**
+ * AI 润色预览：按建议改写引用片段（找得到原文时）或整篇（找不到时）。
+ * 只生成预览，不落库；用户在写作页确认后由编辑器回写并保存新版本。
+ */
+export async function polishFinding(articleId: number, findingId: number) {
+  const finding = await db.query.reviewFindings.findFirst({
+    where: eq(reviewFindings.id, findingId),
+  });
+  const version = await db.query.articleVersions.findFirst({
+    where: eq(articleVersions.articleId, articleId),
+    orderBy: desc(articleVersions.versionNo),
+  });
+  if (!finding || !version) return null;
+
+  const quote = finding.quote.trim();
+  if (quote && version.contentHtml.includes(quote)) {
+    const revised = await aiPolishWithSuggestion(quote, finding.suggestion, false);
+    return { mode: "fragment" as const, original: quote, revised };
+  }
+  const revisedHtml = await aiPolishWithSuggestion(
+    version.contentHtml,
+    quote ? `${finding.suggestion}（相关原文：${quote}）` : finding.suggestion,
+    true,
+  );
+  return { mode: "document" as const, original: version.contentHtml, revised: revisedHtml };
 }
 
 /** 接受或忽略审阅建议 */
@@ -97,4 +125,5 @@ export async function setFindingStatus(
     .set({ status })
     .where(eq(reviewFindings.id, findingId));
   revalidatePath(`/articles/${articleId}/review`);
+  revalidatePath(`/articles/${articleId}`);
 }

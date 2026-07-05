@@ -30,3 +30,6 @@ npm-debug.log*
 package-lock.json
 yarn.lock
 pnpm-lock.yaml
+
+# raw key drop file (migrated to .env.local)
+env.txt

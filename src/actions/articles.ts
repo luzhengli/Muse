@@ -55,6 +55,20 @@ export async function saveVersion(
   return { versionNo };
 }
 
+/** 从历史版本恢复：把该版本内容另存为新版本，不破坏历史 */
+export async function restoreVersion(articleId: number, versionId: number) {
+  const source = await db.query.articleVersions.findFirst({
+    where: eq(articleVersions.id, versionId),
+  });
+  if (!source || source.articleId !== articleId) return;
+  const { versionNo } = await saveVersion(
+    articleId,
+    source.contentHtml,
+    `从 v${source.versionNo} 恢复`,
+  );
+  return { versionNo };
+}
+
 export async function updateArticleTitle(articleId: number, title: string) {
   if (!title.trim()) return;
   await db

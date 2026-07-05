@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { createCollection, addMaterialsToCollection } from "@/actions/materials";
 import { generateTopicsFromCollection } from "@/actions/topics";
@@ -10,64 +10,22 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 
 interface Props {
-  q: string;
-  tag: string;
-  allTags: string[];
   collections: { id: number; name: string; count: number }[];
   materials: { id: number; title: string }[];
 }
 
-export function MaterialToolbar({ q, tag, allTags, collections, materials }: Props) {
-  const router = useRouter();
-  const params = useSearchParams();
+export function MaterialToolbar({ collections, materials }: Props) {
   const [showCollect, setShowCollect] = useState(false);
   const [selected, setSelected] = useState<number[]>([]);
   const [pending, startTransition] = useTransition();
 
-  function setParam(key: string, value: string) {
-    const next = new URLSearchParams(params.toString());
-    if (value) next.set(key, value);
-    else next.delete(key);
-    router.push(`/materials?${next.toString()}`);
-  }
-
   return (
     <div className="space-y-2">
-      <div className="flex items-center gap-2">
-        <form
-          className="flex flex-1 gap-2"
-          action={(fd) => setParam("q", String(fd.get("q") ?? ""))}
-        >
-          <Input
-            name="q"
-            defaultValue={q}
-            placeholder="全文搜索语料块（FTS5，支持中文子串）"
-            className="flex-1"
-          />
-          <Button type="submit" variant="outline">
-            搜索
-          </Button>
-          {(q || tag) && (
-            <Button type="button" variant="ghost" onClick={() => router.push("/materials")}>
-              清除
-            </Button>
-          )}
-        </form>
+      <div className="flex justify-end">
         <Button variant="secondary" onClick={() => setShowCollect((v) => !v)}>
           {showCollect ? "收起集合" : "素材集合"}
         </Button>
       </div>
-
-      {allTags.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-xs text-(--color-muted)">标签：</span>
-          {allTags.map((t) => (
-            <button key={t} onClick={() => setParam("tag", t === tag ? "" : t)}>
-              <Badge tone={t === tag ? "primary" : "default"}>{t}</Badge>
-            </button>
-          ))}
-        </div>
-      )}
 
       {showCollect && (
         <Card>
@@ -84,7 +42,12 @@ export function MaterialToolbar({ q, tag, allTags, collections, materials }: Pro
                   key={c.id}
                   className="flex items-center gap-2 rounded-(--radius-control) border border-(--color-border) px-2.5 py-1.5"
                 >
-                  <span className="text-xs font-medium">{c.name}</span>
+                  <Link
+                    href={`/materials/collections/${c.id}`}
+                    className="text-xs font-medium text-(--color-primary) hover:underline"
+                  >
+                    {c.name}
+                  </Link>
                   <Badge>{c.count} 条</Badge>
                   {selected.length > 0 && (
                     <Button

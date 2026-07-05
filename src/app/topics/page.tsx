@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { desc, inArray } from "drizzle-orm";
-import { db, topics, materials, collections } from "@/db";
+import { db, topics, materials, collections, type Topic } from "@/db";
 import {
   generateTopicsFromCollection,
   generateBriefAction,
@@ -12,7 +12,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input, Textarea, Select } from "@/components/ui/input";
-import { platformName } from "@/lib/platforms";
+import { ListFilter } from "@/components/list-filter";
+import { Timeline } from "@/components/timeline";
+import { PLATFORM_IDS, platformName } from "@/lib/platforms";
+import { groupByDay, inDateRange, parseDateRange } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -29,8 +32,36 @@ const originLabel: Record<string, string> = {
   retro: "复盘反哺",
 };
 
-export default async function TopicsPage() {
-  const rows = await db.select().from(topics).orderBy(desc(topics.createdAt));
+export default async function TopicsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    q?: string;
+    status?: string;
+    platform?: string;
+    from?: string;
+    to?: string;
+    view?: string;
+  }>;
+}) {
+  const { q, status, platform, from, to, view } = await searchParams;
+  let rows = await db.select().from(topics).orderBy(desc(topics.createdAt));
+  if (q?.trim()) {
+    const kw = q.trim();
+    rows = rows.filter(
+      (t) =>
+        t.title.includes(kw) ||
+        t.angle.includes(kw) ||
+        t.targetAudience.includes(kw) ||
+        t.corePoints.some((p) => p.includes(kw)),
+    );
+  }
+  if (status) rows = rows.filter((t) => t.status === status);
+  if (platform) rows = rows.filter((t) => t.recommendedPlatforms.includes(platform));
+  const range = parseDateRange(from, to);
+  if (range.fromUnix !== null || range.toUnix !== null) {
+    rows = rows.filter((t) => inDateRange(t.createdAt, range));
+  }
   const cols = await db.select().from(collections).orderBy(desc(collections.createdAt));
   const allMaterialIds = [...new Set(rows.flatMap((t) => t.materialIds))];
   const mats = allMaterialIds.length
@@ -41,88 +72,10 @@ export default async function TopicsPage() {
     : [];
   const matTitle = new Map(mats.map((m) => [m.id, m.title]));
 
-  return (
-    <div className="mx-auto max-w-5xl space-y-4">
-      <div>
-        <h1 className="text-xl font-bold">选题板</h1>
-        <p className="mt-1 text-sm text-(--color-muted)">
-          基于素材集合生成选题卡片，展开为创作 brief，再一键生成初稿进入写作台。
-        </p>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        {/* 从集合生成 */}
-        <Card>
-          <CardHeader>
-            <CardTitle>从素材集合生成选题</CardTitle>
-            <CardDescription>AI 会阅读集合内的语料，生成 3 个差异化选题卡片。</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form action={generateTopicsFromCollection} className="flex gap-2">
-              <Select name="collectionId" required className="flex-1">
-                <option value="">选择素材集合…</option>
-                {cols.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </Select>
-              <Button>生成选题卡片</Button>
-            </form>
-            {cols.length === 0 && (
-              <p className="mt-2 text-xs text-(--color-muted)">
-                还没有素材集合，先到
-                <Link href="/materials" className="text-(--color-primary) underline">
-                  素材库
-                </Link>
-                勾选素材创建集合。
-              </p>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* 手动创建 */}
-        <Card>
-          <CardHeader>
-            <CardTitle>手动创建选题</CardTitle>
-            <CardDescription>已有明确想法时直接建卡。</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form action={createManualTopic} className="space-y-2">
-              <Input name="title" required placeholder="选题标题方向" />
-              <div className="flex gap-2">
-                <Input name="targetAudience" placeholder="目标读者" className="flex-1" />
-                <Input name="angle" placeholder="内容角度" className="flex-1" />
-              </div>
-              <Textarea name="corePoints" placeholder="核心观点，每行一条" className="min-h-16" />
-              <div className="flex items-center gap-3 text-xs">
-                {(["xiaohongshu", "x", "wechat"] as const).map((p) => (
-                  <label key={p} className="flex items-center gap-1">
-                    <input type="checkbox" name="platforms" value={p} />
-                    {platformName(p)}
-                  </label>
-                ))}
-                <Button size="sm" className="ml-auto">
-                  创建
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        {rows.length === 0 && (
-          <Card className="col-span-2">
-            <CardContent className="py-10 text-center text-sm text-(--color-muted)">
-              还没有选题。从素材集合生成，或手动创建。
-            </CardContent>
-          </Card>
-        )}
-        {rows.map((t) => {
-          const st = statusLabel[t.status];
-          return (
-            <Card key={t.id}>
+  function renderTopicCard(t: Topic) {
+    const st = statusLabel[t.status];
+    return (
+      <Card key={t.id}>
               <CardHeader>
                 <div className="flex items-start justify-between gap-2">
                   <CardTitle className="text-base">{t.title}</CardTitle>
@@ -204,9 +157,109 @@ export default async function TopicsPage() {
                 </div>
               </CardContent>
             </Card>
-          );
-        })}
+    );
+  }
+
+  return (
+    <div className="mx-auto max-w-5xl space-y-4">
+      <div>
+        <h1 className="text-xl font-bold">选题板</h1>
+        <p className="mt-1 text-sm text-(--color-muted)">
+          基于素材集合生成选题卡片，展开为创作 brief，再一键生成初稿进入写作台。
+        </p>
       </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        {/* 从集合生成 */}
+        <Card>
+          <CardHeader>
+            <CardTitle>从素材集合生成选题</CardTitle>
+            <CardDescription>AI 会阅读集合内的语料，生成 3 个差异化选题卡片。</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form action={generateTopicsFromCollection} className="flex gap-2">
+              <Select name="collectionId" required className="flex-1">
+                <option value="">选择素材集合…</option>
+                {cols.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </Select>
+              <Button>生成选题卡片</Button>
+            </form>
+            {cols.length === 0 && (
+              <p className="mt-2 text-xs text-(--color-muted)">
+                还没有素材集合，先到
+                <Link href="/materials" className="text-(--color-primary) underline">
+                  素材库
+                </Link>
+                勾选素材创建集合。
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* 手动创建 */}
+        <Card>
+          <CardHeader>
+            <CardTitle>手动创建选题</CardTitle>
+            <CardDescription>已有明确想法时直接建卡。</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form action={createManualTopic} className="space-y-2">
+              <Input name="title" required placeholder="选题标题方向" />
+              <div className="flex gap-2">
+                <Input name="targetAudience" placeholder="目标读者" className="flex-1" />
+                <Input name="angle" placeholder="内容角度" className="flex-1" />
+              </div>
+              <Textarea name="corePoints" placeholder="核心观点，每行一条" className="min-h-16" />
+              <div className="flex items-center gap-3 text-xs">
+                {(["xiaohongshu", "x", "wechat"] as const).map((p) => (
+                  <label key={p} className="flex items-center gap-1">
+                    <input type="checkbox" name="platforms" value={p} />
+                    {platformName(p)}
+                  </label>
+                ))}
+                <Button size="sm" className="ml-auto">
+                  创建
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+
+      <ListFilter
+        basePath="/topics"
+        keywordPlaceholder="按标题 / 角度 / 读者 / 核心观点搜索"
+        statusOptions={[
+          { value: "idea", label: "想法" },
+          { value: "briefed", label: "已有 Brief" },
+          { value: "drafting", label: "写作中" },
+          { value: "done", label: "完成" },
+        ]}
+        platformOptions={PLATFORM_IDS.map((p) => ({ value: p, label: platformName(p) }))}
+      />
+
+      {rows.length === 0 ? (
+        <Card>
+          <CardContent className="py-10 text-center text-sm text-(--color-muted)">
+            {q || status || platform || from || to
+              ? "没有匹配的选题。"
+              : "还没有选题。从素材集合生成，或手动创建。"}
+          </CardContent>
+        </Card>
+      ) : view === "timeline" ? (
+        <Timeline
+          groups={groupByDay(rows, (t) => t.createdAt).map((g) => ({
+            label: g.label,
+            children: g.items.map(renderTopicCard),
+          }))}
+        />
+      ) : (
+        <div className="grid grid-cols-2 gap-3">{rows.map(renderTopicCard)}</div>
+      )}
     </div>
   );
 }

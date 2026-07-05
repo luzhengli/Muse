@@ -39,11 +39,31 @@ export async function generatePackaging(articleId: number) {
     .set({ status: "packaged" })
     .where(eq(articles.id, articleId));
   revalidatePath(`/articles/${articleId}/packaging`);
+  revalidatePath(`/articles/${articleId}`);
 }
 
 /** 采用某个候选标题作为文章标题 */
 export async function adoptTitle(articleId: number, title: string) {
   await db.update(articles).set({ title }).where(eq(articles.id, articleId));
+  revalidatePath(`/articles/${articleId}/packaging`);
+  revalidatePath(`/articles/${articleId}`);
+  revalidatePath("/articles");
+}
+
+/** 应用包装摘要为文章元信息摘要 */
+export async function applySummary(articleId: number, summary: string) {
+  await db.update(articles).set({ summary }).where(eq(articles.id, articleId));
+  revalidatePath(`/articles/${articleId}/packaging`);
+  revalidatePath(`/articles/${articleId}`);
+  revalidatePath("/articles");
+}
+
+/** 把已上传图片设为文章封面（传 null 取消） */
+export async function setCoverAsset(articleId: number, assetId: number | null) {
+  await db
+    .update(articles)
+    .set({ coverAssetId: assetId })
+    .where(eq(articles.id, articleId));
   revalidatePath(`/articles/${articleId}/packaging`);
   revalidatePath(`/articles/${articleId}`);
 }
@@ -69,6 +89,7 @@ export async function uploadAsset(formData: FormData) {
     filePath: `data/assets/${safeName}`,
   });
   revalidatePath(`/articles/${articleId}/packaging`);
+  revalidatePath(`/articles/${articleId}`);
 }
 
 export async function deleteAsset(assetId: number, articleId: number) {
@@ -81,4 +102,5 @@ export async function deleteAsset(assetId: number, articleId: number) {
     await db.delete(assets).where(eq(assets.id, assetId));
   }
   revalidatePath(`/articles/${articleId}/packaging`);
+  revalidatePath(`/articles/${articleId}`);
 }
