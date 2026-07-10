@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input, Textarea, Label } from "@/components/ui/input";
 import { PLATFORM_IDS, PLATFORMS, platformName } from "@/lib/platforms";
 import { fmtTime } from "@/lib/utils";
-import { AiActionButton } from "@/components/ai-action";
+import { AiActionButton, AiResultTransition } from "@/components/ai-action";
 
 export const dynamic = "force-dynamic";
 
@@ -72,7 +72,10 @@ export default async function VariantsPage({
         </Card>
       )}
 
-      <div className="space-y-4">
+      <AiResultTransition
+        signature={variants.map((v) => `${v.id}:${v.updatedAt}`).join("|") || "empty"}
+        className="space-y-4"
+      >
         {variants.map((v) => {
           const spec = PLATFORMS[v.platform];
           return (
@@ -155,7 +158,7 @@ export default async function VariantsPage({
             </Card>
           );
         })}
-      </div>
+      </AiResultTransition>
     </div>
   );
 }

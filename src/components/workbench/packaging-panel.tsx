@@ -16,7 +16,11 @@ import { Input, Select } from "@/components/ui/input";
 import { assetUrl, cn, escapeHtml, fmtTime } from "@/lib/utils";
 import type { WorkbenchData } from "./types";
 import type { AiActionResult } from "@/lib/ai";
-import { AiActionFeedback, AiButtonContent } from "@/components/ai-action";
+import {
+  AiActionFeedback,
+  AiButtonContent,
+  AiResultTransition,
+} from "@/components/ai-action";
 
 const kindLabel: Record<string, string> = {
   cover: "封面",
@@ -113,8 +117,9 @@ export function PackagingPanel({
 
       <AiActionFeedback result={feedback} />
 
-      {pack && (
-        <div className="ai-result-reveal space-y-3">
+      <AiResultTransition signature={pack?.id ?? "empty"}>
+        {pack && (
+          <div className="space-y-3">
           {/* 标题候选 */}
           <div className="space-y-1.5">
             <div className="text-xs font-semibold">标题候选 → 应用为文章标题</div>
@@ -216,8 +221,9 @@ export function PackagingPanel({
               </div>
             </div>
           )}
-        </div>
-      )}
+          </div>
+        )}
+      </AiResultTransition>
 
       {/* 图片资产 */}
       <div className="space-y-1.5">

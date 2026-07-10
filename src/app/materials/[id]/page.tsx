@@ -6,7 +6,7 @@ import { cleanMaterial, deleteMaterial } from "@/actions/materials";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AiActionButton } from "@/components/ai-action";
+import { AiActionButton, AiResultTransition } from "@/components/ai-action";
 import { fmtTime } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -87,33 +87,38 @@ export default async function MaterialDetail({
         </div>
       </div>
 
-      {material.summary && (
-        <Card>
-          <CardHeader>
-            <CardTitle>摘要</CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm leading-relaxed">{material.summary}</CardContent>
-        </Card>
-      )}
+      <AiResultTransition
+        signature={`${material.updatedAt}:${chunks.map((c) => c.id).join(",")}`}
+        className="space-y-4"
+      >
+        {material.summary && (
+          <Card>
+            <CardHeader>
+              <CardTitle>摘要</CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm leading-relaxed">{material.summary}</CardContent>
+          </Card>
+        )}
 
-      {chunks.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>语料块（{chunks.length}）· 已进入全文索引</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {chunks.map((c) => (
-              <div
-                key={c.id}
-                className="rounded-(--radius-control) border border-(--color-border) bg-(--color-muted-bg) p-3 text-sm leading-relaxed"
-              >
-                <span className="mr-2 text-[10px] text-(--color-muted)">#{c.orderIndex + 1}</span>
-                {c.content}
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
+        {chunks.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>语料块（{chunks.length}）· 已进入全文索引</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {chunks.map((c) => (
+                <div
+                  key={c.id}
+                  className="rounded-(--radius-control) border border-(--color-border) bg-(--color-muted-bg) p-3 text-sm leading-relaxed"
+                >
+                  <span className="mr-2 text-[10px] text-(--color-muted)">#{c.orderIndex + 1}</span>
+                  {c.content}
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+      </AiResultTransition>
 
       <Card>
         <CardHeader>

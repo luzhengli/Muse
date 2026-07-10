@@ -4,7 +4,7 @@ import { desc, eq, inArray } from "drizzle-orm";
 import { db, collections, collectionMaterials, materials, topics } from "@/db";
 import { generateTopicsFromCollection } from "@/actions/topics";
 import { Badge } from "@/components/ui/badge";
-import { AiActionForm } from "@/components/ai-action";
+import { AiActionForm, AiResultTransition } from "@/components/ai-action";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { fmtTime } from "@/lib/utils";
 
@@ -129,28 +129,32 @@ export default async function CollectionDetailPage({
       </div>
 
       {/* 由该集合生成的选题 */}
-      {generatedTopics.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>由该集合生成的选题（{generatedTopics.length}）</CardTitle>
-            <CardDescription>
-              到<Link href="/topics" className="text-(--color-primary) underline">选题板</Link>
-              继续生成 Brief 与初稿。
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-1.5">
-            {generatedTopics.map((t) => (
-              <div
-                key={t.id}
-                className="flex items-center gap-2 rounded-(--radius-control) border border-(--color-border) p-2 text-sm"
-              >
-                <span className="line-clamp-1 flex-1">{t.title}</span>
-                <span className="text-xs text-(--color-muted)">{fmtTime(t.createdAt)}</span>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
+      <AiResultTransition
+        signature={generatedTopics.map((t) => t.id).join("|") || "empty"}
+      >
+        {generatedTopics.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>由该集合生成的选题（{generatedTopics.length}）</CardTitle>
+              <CardDescription>
+                到<Link href="/topics" className="text-(--color-primary) underline">选题板</Link>
+                继续生成 Brief 与初稿。
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-1.5">
+              {generatedTopics.map((t) => (
+                <div
+                  key={t.id}
+                  className="flex items-center gap-2 rounded-(--radius-control) border border-(--color-border) p-2 text-sm"
+                >
+                  <span className="line-clamp-1 flex-1">{t.title}</span>
+                  <span className="text-xs text-(--color-muted)">{fmtTime(t.createdAt)}</span>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+      </AiResultTransition>
     </div>
   );
 }

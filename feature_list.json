@@ -169,7 +169,7 @@
         "feat-016"
       ],
       "status": "in-progress",
-      "evidence": "2026-07-11：页面切换补齐旧工作区 120ms/4px 离场和新页面 220ms 入场；普通链接/历史导航/AI 成功跳转/筛选跳转统一顶部进度反馈并带 12 秒异常收尾；按钮/导航按压反馈、工作台 tab/预览过渡、全部 AI pending 流光+闪光图标+固定宽度交叉淡入、AI 结果语义提示弹入、prefers-reduced-motion 降级已实现。typecheck/lint/build/DESIGN lint 通过；当前本地浏览器策略禁止 localhost，待真实页面视觉节奏确认后标记 done。"
+      "evidence": "2026-07-11：页面切换补齐旧工作区 120ms/4px 离场和新页面 220ms 入场；普通链接/历史导航/AI 成功跳转/筛选跳转统一顶部进度反馈并带 12 秒异常收尾；全部 AI pending 使用流光、闪光图标和固定宽度交叉淡入；选题/Brief、素材清洗、AI 审阅、包装重新生成、平台派生和集合生成按结果签名变化重播 reveal，首次加载不重复动画；prefers-reduced-motion 降级已实现。typecheck/lint/build/DESIGN lint 通过；当前本地浏览器策略禁止 localhost，待真实页面视觉节奏确认后标记 done。"
     }
   ]
 }

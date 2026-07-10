@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, CheckCircle2, CircleAlert, Sparkles } from "lucide-react";
 import type { AiActionResult } from "@/lib/ai";
@@ -85,6 +85,32 @@ export function AiActionFeedback({
       <Icon className="mt-0.5 h-3 w-3 shrink-0" aria-hidden="true" />
       <span>{result.message}</span>
     </p>
+  );
+}
+
+export function AiResultTransition({
+  signature,
+  children,
+  className,
+}: {
+  signature: string | number;
+  children: ReactNode;
+  className?: string;
+}) {
+  const previousSignature = useRef(signature);
+  const changed = previousSignature.current !== signature;
+
+  useEffect(() => {
+    previousSignature.current = signature;
+  }, [signature]);
+
+  return (
+    <div
+      key={String(signature)}
+      className={cn(changed && "ai-result-reveal", className)}
+    >
+      {children}
+    </div>
   );
 }
 

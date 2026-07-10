@@ -14,7 +14,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input, Textarea, Select } from "@/components/ui/input";
 import { ListFilter } from "@/components/list-filter";
 import { Timeline } from "@/components/timeline";
-import { AiActionButton, AiActionForm } from "@/components/ai-action";
+import {
+  AiActionButton,
+  AiActionForm,
+  AiResultTransition,
+} from "@/components/ai-action";
 import { PLATFORM_IDS, platformName } from "@/lib/platforms";
 import { groupByDay, inDateRange, parseDateRange } from "@/lib/utils";
 
@@ -242,24 +246,32 @@ export default async function TopicsPage({
         platformOptions={PLATFORM_IDS.map((p) => ({ value: p, label: platformName(p) }))}
       />
 
-      {rows.length === 0 ? (
-        <Card>
-          <CardContent className="py-10 text-center text-sm text-(--color-muted)">
-            {q || status || platform || from || to
-              ? "没有匹配的选题。"
-              : "还没有选题。从素材集合生成，或手动创建。"}
-          </CardContent>
-        </Card>
-      ) : view === "timeline" ? (
-        <Timeline
-          groups={groupByDay(rows, (t) => t.createdAt).map((g) => ({
-            label: g.label,
-            children: g.items.map(renderTopicCard),
-          }))}
-        />
-      ) : (
-        <div className="grid grid-cols-2 gap-3">{rows.map(renderTopicCard)}</div>
-      )}
+      <AiResultTransition
+        signature={
+          rows
+            .map((t) => `${t.id}:${t.status}:${t.brief ? JSON.stringify(t.brief) : ""}`)
+            .join("|") || "empty"
+        }
+      >
+        {rows.length === 0 ? (
+          <Card>
+            <CardContent className="py-10 text-center text-sm text-(--color-muted)">
+              {q || status || platform || from || to
+                ? "没有匹配的选题。"
+                : "还没有选题。从素材集合生成，或手动创建。"}
+            </CardContent>
+          </Card>
+        ) : view === "timeline" ? (
+          <Timeline
+            groups={groupByDay(rows, (t) => t.createdAt).map((g) => ({
+              label: g.label,
+              children: g.items.map(renderTopicCard),
+            }))}
+          />
+        ) : (
+          <div className="grid grid-cols-2 gap-3">{rows.map(renderTopicCard)}</div>
+        )}
+      </AiResultTransition>
     </div>
   );
 }

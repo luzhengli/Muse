@@ -11,7 +11,7 @@ import { Input, Textarea, Select } from "@/components/ui/input";
 import { reviewCategoryLabel, severityLabel } from "@/lib/labels";
 import { PLATFORM_IDS, platformName } from "@/lib/platforms";
 import { fmtTime } from "@/lib/utils";
-import { AiActionForm } from "@/components/ai-action";
+import { AiActionForm, AiResultTransition } from "@/components/ai-action";
 
 export const dynamic = "force-dynamic";
 
@@ -120,88 +120,97 @@ export default async function ReviewPage({
       </div>
 
       {/* 审阅记录与建议列表 */}
-      {reviewRows.map((r) => {
-        const items = findings.filter((f) => f.reviewId === r.id);
-        return (
-          <Card key={r.id}>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <CardTitle>
-                  {r.type === "ai" ? "🤖 AI 审阅" : "👤 人工审阅"}
-                </CardTitle>
-                <span className="text-xs text-(--color-muted)">{fmtTime(r.createdAt)}</span>
-              </div>
-              {r.summary && <CardDescription>{r.summary}</CardDescription>}
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {items.map((f) => {
-                const sev = severityLabel[f.severity];
-                return (
-                  <div
-                    key={f.id}
-                    className={`rounded-(--radius-control) border p-3 ${
-                      f.status === "ignored"
-                        ? "border-(--color-border) opacity-50"
-                        : f.status === "accepted"
-                          ? "border-(--color-success)"
-                          : "border-(--color-border)"
-                    }`}
-                  >
-                    <div className="flex items-center gap-1.5">
-                      <Badge tone="primary">{reviewCategoryLabel[f.category]}</Badge>
-                      <Badge tone={sev.tone}>{sev.text}</Badge>
-                      {f.status === "accepted" && <Badge tone="success">已接受</Badge>}
-                      {f.status === "ignored" && <Badge>已忽略</Badge>}
-                      <div className="ml-auto flex gap-1">
-                        {f.status !== "accepted" && (
-                          <form
-                            action={async () => {
-                              "use server";
-                              await setFindingStatus(f.id, articleId, "accepted");
-                            }}
-                          >
-                            <Button size="sm" variant="secondary">
-                              接受
-                            </Button>
-                          </form>
+      <AiResultTransition
+        signature={reviewRows.map((r) => `${r.id}:${r.createdAt}`).join("|") || "empty"}
+        className="space-y-4"
+      >
+        {reviewRows.map((r) => {
+          const items = findings.filter((f) => f.reviewId === r.id);
+          return (
+            <Card key={r.id}>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <CardTitle>
+                    {r.type === "ai" ? "🤖 AI 审阅" : "👤 人工审阅"}
+                  </CardTitle>
+                  <span className="text-xs text-(--color-muted)">
+                    {fmtTime(r.createdAt)}
+                  </span>
+                </div>
+                {r.summary && <CardDescription>{r.summary}</CardDescription>}
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {items.map((f) => {
+                  const sev = severityLabel[f.severity];
+                  return (
+                    <div
+                      key={f.id}
+                      className={`rounded-(--radius-control) border p-3 ${
+                        f.status === "ignored"
+                          ? "border-(--color-border) opacity-50"
+                          : f.status === "accepted"
+                            ? "border-(--color-success)"
+                            : "border-(--color-border)"
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <Badge tone="primary">{reviewCategoryLabel[f.category]}</Badge>
+                        <Badge tone={sev.tone}>{sev.text}</Badge>
+                        {f.status === "accepted" && (
+                          <Badge tone="success">已接受</Badge>
                         )}
-                        {f.status !== "ignored" && (
-                          <form
-                            action={async () => {
-                              "use server";
-                              await setFindingStatus(f.id, articleId, "ignored");
-                            }}
-                          >
-                            <Button size="sm" variant="ghost">
-                              忽略
-                            </Button>
-                          </form>
-                        )}
+                        {f.status === "ignored" && <Badge>已忽略</Badge>}
+                        <div className="ml-auto flex gap-1">
+                          {f.status !== "accepted" && (
+                            <form
+                              action={async () => {
+                                "use server";
+                                await setFindingStatus(f.id, articleId, "accepted");
+                              }}
+                            >
+                              <Button size="sm" variant="secondary">
+                                接受
+                              </Button>
+                            </form>
+                          )}
+                          {f.status !== "ignored" && (
+                            <form
+                              action={async () => {
+                                "use server";
+                                await setFindingStatus(f.id, articleId, "ignored");
+                              }}
+                            >
+                              <Button size="sm" variant="ghost">
+                                忽略
+                              </Button>
+                            </form>
+                          )}
+                        </div>
                       </div>
+                      {f.quote && (
+                        <blockquote className="mt-2 border-l-2 border-(--color-border) pl-2 text-xs text-(--color-muted)">
+                          {f.quote}
+                        </blockquote>
+                      )}
+                      <p className="mt-1.5 text-sm leading-relaxed">{f.suggestion}</p>
                     </div>
-                    {f.quote && (
-                      <blockquote className="mt-2 border-l-2 border-(--color-border) pl-2 text-xs text-(--color-muted)">
-                        {f.quote}
-                      </blockquote>
-                    )}
-                    <p className="mt-1.5 text-sm leading-relaxed">{f.suggestion}</p>
-                  </div>
-                );
-              })}
-              {items.length === 0 && (
-                <p className="text-xs text-(--color-muted)">此次审阅暂无意见条目。</p>
-              )}
+                  );
+                })}
+                {items.length === 0 && (
+                  <p className="text-xs text-(--color-muted)">此次审阅暂无意见条目。</p>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
+        {reviewRows.length === 0 && (
+          <Card>
+            <CardContent className="py-10 text-center text-sm text-(--color-muted)">
+              还没有审阅记录。执行 AI 审阅或添加人工意见后，接受的建议可回到写作台修订并保存新版本。
             </CardContent>
           </Card>
-        );
-      })}
-      {reviewRows.length === 0 && (
-        <Card>
-          <CardContent className="py-10 text-center text-sm text-(--color-muted)">
-            还没有审阅记录。执行 AI 审阅或添加人工意见后，接受的建议可回到写作台修订并保存新版本。
-          </CardContent>
-        </Card>
-      )}
+        )}
+      </AiResultTransition>
     </div>
   );
 }

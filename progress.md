@@ -15,6 +15,7 @@
 - [x] **基础交互反馈**：Button、侧栏、文章 tabs、筛选视图、素材导入 tabs、编辑器工具栏与工作台 tabs 增加 120~150ms 按压缩放和精确属性过渡。
 - [x] **AI pending 动效**：全部通用 AI Action 和工作台改写/审阅/润色/包装按钮使用闪光图标与伪元素流光；空闲态和 pending 态同槽交叉淡入，按钮宽度不跳动。
 - [x] **AI 结果过渡**：success/warning/danger 提示增加对应图标、soft 背景与 180ms 弹入；新审阅记录、润色预览、包装结果使用同一结果 reveal。
+- [x] **AI 产物到达动效**：新增按数据签名变化触发的 `AiResultTransition`，覆盖选题/Brief、素材清洗、AI 审阅、包装重新生成、平台派生和集合生成；首次打开页面不重播已有结果，避免整页同时动画。
 - [x] **可访问性与性能**：AI 按钮维持 `aria-busy` / 动态 accessible name；`prefers-reduced-motion` 关闭页面、面板、反馈、流光和循环图标动画；未引入动画依赖。
 
 ### Verification（feat-017）

@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input, Select } from "@/components/ui/input";
 import { fmtTime } from "@/lib/utils";
-import { AiActionButton } from "@/components/ai-action";
+import { AiActionButton, AiResultTransition } from "@/components/ai-action";
 
 export const dynamic = "force-dynamic";
 
@@ -77,8 +77,9 @@ export default async function PackagingPage({
         />
       </div>
 
-      {latestPack ? (
-        <div className="grid grid-cols-2 gap-4">
+      <AiResultTransition signature={latestPack?.id ?? "empty"}>
+        {latestPack ? (
+          <div className="grid grid-cols-2 gap-4">
           <Card>
             <CardHeader>
               <CardTitle>标题候选</CardTitle>
@@ -171,14 +172,15 @@ export default async function PackagingPage({
               </CardContent>
             </Card>
           )}
-        </div>
-      ) : (
-        <Card>
-          <CardContent className="py-10 text-center text-sm text-(--color-muted)">
-            还没有包装物料，点击右上角生成。
-          </CardContent>
-        </Card>
-      )}
+          </div>
+        ) : (
+          <Card>
+            <CardContent className="py-10 text-center text-sm text-(--color-muted)">
+              还没有包装物料，点击右上角生成。
+            </CardContent>
+          </Card>
+        )}
+      </AiResultTransition>
 
       {/* 本地图片资源 */}
       <Card>
