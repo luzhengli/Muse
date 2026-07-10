@@ -1,0 +1,41 @@
+DESIGN.md
+  s_23d2a56b4c9e25::t_cdc66468b9b918 77
+feature_list.json
+  s_23d2a56b4c9e25::t_4672b2c2606bea 172
+progress.md
+  s_23d2a56b4c9e25::t_ffeb8d0fb3273b 18
+src/app/articles/[id]/packaging/page.tsx
+  s_23d2a56b4c9e25::t_1b971c6e64a036 17,80-82,175-183
+src/app/articles/[id]/review/page.tsx
+  s_23d2a56b4c9e25::t_db9df42cae82e0 14,123-160,162-188,190-195,197-209,212-213
+src/app/articles/[id]/variants/page.tsx
+  s_23d2a56b4c9e25::t_c561c8f30e5e75 14,75-78,161
+src/app/materials/[id]/page.tsx
+  s_23d2a56b4c9e25::t_e1b132e83169c4 9,90-101,103-121
+src/app/materials/collections/[id]/page.tsx
+  s_23d2a56b4c9e25::t_011aa1a26e3faf 7,132-157
+src/app/topics/page.tsx
+  s_23d2a56b4c9e25::t_5fcd568c753c5f 17-21,249-274
+src/components/ai-action.tsx
+  s_23d2a56b4c9e25::t_cbefa635d1bba0 3,91-116
+src/components/workbench/packaging-panel.tsx
+  s_23d2a56b4c9e25::t_f9c21d349a11c5 19-23,120-122,224-226
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "1895ad1c9aa8847e2a7f7615c260ae26d4a0d295",
+  "prompts": {},
+  "sessions": {
+    "s_23d2a56b4c9e25": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f4b92-f94a-7320-ad72-cec24721fb59",
+        "model": "unknown"
+      },
+      "human_author": "liluzheng <liluzheng@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
