@@ -16,6 +16,7 @@ import { Timeline } from "@/components/timeline";
 import { PLATFORM_IDS, platformName } from "@/lib/platforms";
 import { fmtTime, groupByDay, inDateRange, parseDateRange } from "@/lib/utils";
 import type { RetroNote } from "@/db";
+import { AiActionButton } from "@/components/ai-action";
 
 export const dynamic = "force-dynamic";
 
@@ -83,16 +84,13 @@ export default async function RetroPage({
                       <Badge tone="success">已转为选题 #{n.convertedTopicId}</Badge>
                     </Link>
                   ) : (
-                    <form
-                      action={async () => {
-                        "use server";
-                        await convertRetroToTopic(n.id);
-                      }}
-                    >
-                      <Button size="sm" variant="secondary">
-                        反哺为新选题 →
-                      </Button>
-                    </form>
+                    <AiActionButton
+                      action={convertRetroToTopic.bind(null, n.id)}
+                      label="反哺为新选题 →"
+                      pendingLabel="选题生成中…"
+                      size="sm"
+                      variant="secondary"
+                    />
                   )}
                   <form
                     action={async () => {

@@ -1,5 +1,40 @@
 import type { ReviewCategory } from "@/db/schema";
 
+export type AiFallbackReason = "not-configured" | "timeout" | "provider-error";
+
+export type AiRunMeta =
+  | {
+      status: "success";
+      source: "real";
+      action: string;
+      provider: string;
+      model: string;
+      durationMs: number;
+    }
+  | {
+      status: "fallback";
+      source: "mock";
+      reason: AiFallbackReason;
+      action: string;
+      provider: string;
+      model: string;
+      durationMs: number;
+    };
+
+export interface AiResult<T> {
+  data: T;
+  meta: AiRunMeta;
+}
+
+export interface AiActionResult<T = undefined> {
+  ok: boolean;
+  message: string;
+  tone: "success" | "warning" | "danger";
+  data?: T;
+  redirectTo?: string;
+  ai?: AiRunMeta;
+}
+
 export interface MaterialInput {
   id: number;
   title: string;

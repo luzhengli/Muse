@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import type { Editor } from "@tiptap/react";
 import {
   generatePackaging,
@@ -15,6 +15,8 @@ import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
 import { assetUrl, escapeHtml, fmtTime } from "@/lib/utils";
 import type { WorkbenchData } from "./types";
+import type { AiActionResult } from "@/lib/ai";
+import { AiActionFeedback } from "@/components/ai-action";
 
 const kindLabel: Record<string, string> = {
   cover: "封面",
@@ -29,13 +31,15 @@ export function PackagingPanel({
   editor: Editor | null;
   data: WorkbenchData;
 }) {
-  const [pending, startTransition] = useTransition();
-  const [message, setMessage] = useState("");
+  const [generating, startGenerating] = useTransition();
+  const [mutating, startMutating] = useTransition();
+  const generatingRef = useRef(false);
+  const [feedback, setFeedback] = useState<AiActionResult<unknown> | null>(null);
   const pack = data.packaging;
 
   function copyText(text: string) {
     void navigator.clipboard.writeText(text);
-    setMessage("已复制到剪贴板");
+    setFeedback({ ok: true, message: "已复制到剪贴板。", tone: "success" });
   }
 
   function insertCards() {
@@ -44,7 +48,11 @@ export function PackagingPanel({
       .map((c) => `<h3>${escapeHtml(c.heading)}</h3><p>${escapeHtml(c.body)}</p>`)
       .join("");
     editor.chain().focus("end").insertContent(html).run();
-    setMessage("卡片已插入正文末尾，记得保存新版本");
+    setFeedback({
+      ok: true,
+      message: "卡片已插入正文末尾，记得保存新版本。",
+      tone: "success",
+    });
   }
 
   function insertImage(filePath: string, fileName: string) {
@@ -54,7 +62,27 @@ export function PackagingPanel({
       .focus()
       .insertContent({ type: "image", attrs: { src: assetUrl(filePath), alt: fileName } })
       .run();
-    setMessage("图片已插入正文光标处，记得保存新版本");
+    setFeedback({
+      ok: true,
+      message: "图片已插入正文光标处，记得保存新版本。",
+      tone: "success",
+    });
+  }
+
+  function generate() {
+    if (generatingRef.current) return;
+    generatingRef.current = true;
+    setFeedback(null);
+    startGenerating(async () => {
+      try {
+        const result = await generatePackaging(data.articleId);
+        setFeedback(result);
+      } catch {
+        setFeedback({ ok: false, message: "包装请求未完成，请重试。", tone: "danger" });
+      } finally {
+        generatingRef.current = false;
+      }
+    });
   }
 
   return (
@@ -67,19 +95,14 @@ export function PackagingPanel({
         </div>
         <Button
           size="sm"
-          disabled={pending || !data.versions.length}
-          onClick={() =>
-            startTransition(async () => {
-              await generatePackaging(data.articleId);
-              setMessage("包装物料已生成");
-            })
-          }
+          disabled={generating || !data.versions.length}
+          onClick={generate}
         >
-          {pending ? "生成中…" : pack ? "重新生成" : "生成物料"}
+          {generating ? "生成中…" : pack ? "重新生成" : "生成物料"}
         </Button>
       </div>
 
-      {message && <p className="text-xs text-(--color-primary)">{message}</p>}
+      <AiActionFeedback result={feedback} />
 
       {pack && (
         <>
@@ -98,8 +121,8 @@ export function PackagingPanel({
                   <Button
                     size="sm"
                     variant="ghost"
-                    disabled={pending}
-                    onClick={() => startTransition(() => adoptTitle(data.articleId, t))}
+                    disabled={mutating || generating}
+                    onClick={() => startMutating(() => adoptTitle(data.articleId, t))}
                   >
                     采用
                   </Button>
@@ -120,11 +143,15 @@ export function PackagingPanel({
               <Button
                 size="sm"
                 variant="secondary"
-                disabled={pending}
+                disabled={mutating || generating}
                 onClick={() =>
-                  startTransition(async () => {
+                  startMutating(async () => {
                     await applySummary(data.articleId, pack.summary);
-                    setMessage("摘要已应用，可在图文预览查看");
+                    setFeedback({
+                      ok: true,
+                      message: "摘要已应用，可在图文预览查看。",
+                      tone: "success",
+                    });
                   })
                 }
               >
@@ -189,7 +216,7 @@ export function PackagingPanel({
         <form
           action={async (fd) => {
             await uploadAsset(fd);
-            setMessage("图片已上传");
+            setFeedback({ ok: true, message: "图片已上传。", tone: "success" });
           }}
           className="flex gap-1.5"
         >
@@ -239,7 +266,7 @@ export function PackagingPanel({
                   type="button"
                   className="text-[10px] text-(--color-primary) hover:underline"
                   onClick={() =>
-                    startTransition(() =>
+                    startMutating(() =>
                       setCoverAsset(
                         data.articleId,
                         a.id === data.coverAssetId ? null : a.id,
@@ -252,7 +279,7 @@ export function PackagingPanel({
                 <button
                   type="button"
                   className="text-[10px] text-(--color-muted) hover:underline"
-                  onClick={() => startTransition(() => deleteAsset(a.id, data.articleId))}
+                  onClick={() => startMutating(() => deleteAsset(a.id, data.articleId))}
                 >
                   删除
                 </button>

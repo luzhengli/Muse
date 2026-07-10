@@ -11,41 +11,72 @@ import {
   type ReviewCategory,
 } from "@/db";
 import { aiReview, aiPolishWithSuggestion } from "@/lib/ai";
+import type { AiActionResult } from "@/lib/ai";
+import {
+  aiProvenance,
+  completedAiAction,
+  runExclusiveAiAction,
+} from "@/lib/ai/action";
+
+interface PolishPreview {
+  mode: "fragment" | "document";
+  original: string;
+  revised: string;
+}
 
 /** 对文章最新版本执行 AI 审阅 */
-export async function runAiReview(articleId: number, platformId?: string) {
-  const version = await db.query.articleVersions.findFirst({
-    where: eq(articleVersions.articleId, articleId),
-    orderBy: desc(articleVersions.versionNo),
-  });
-  if (!version) return;
-  const result = await aiReview(version.contentText, platformId);
-  const [review] = await db
-    .insert(reviews)
-    .values({
-      articleId,
-      versionId: version.id,
-      type: "ai",
-      summary: result.summary,
-    })
-    .returning();
-  if (result.findings.length) {
-    await db.insert(reviewFindings).values(
-      result.findings.map((f) => ({
-        reviewId: review.id,
-        category: f.category,
-        severity: f.severity,
-        quote: f.quote,
-        suggestion: f.suggestion,
-      })),
-    );
-  }
-  await db
-    .update(articles)
-    .set({ status: "reviewing" })
-    .where(eq(articles.id, articleId));
-  revalidatePath(`/articles/${articleId}/review`);
-  revalidatePath(`/articles/${articleId}`);
+export async function runAiReview(
+  articleId: number,
+  platformId?: string,
+): Promise<AiActionResult> {
+  return runExclusiveAiAction(
+    `review:article:${articleId}:${platformId ?? "general"}`,
+    "review-article",
+    async () => {
+      const version = await db.query.articleVersions.findFirst({
+        where: eq(articleVersions.articleId, articleId),
+        orderBy: desc(articleVersions.versionNo),
+      });
+      if (!version) {
+        return { ok: false, message: "没有可审阅的文章版本。", tone: "danger" };
+      }
+      const result = await aiReview(version.contentText, platformId);
+      const [review] = await db
+        .insert(reviews)
+        .values({
+          articleId,
+          versionId: version.id,
+          type: "ai",
+          summary: `【${aiProvenance(result.meta)}】${result.data.summary}`,
+        })
+        .returning();
+      if (result.data.findings.length) {
+        await db.insert(reviewFindings).values(
+          result.data.findings.map((f) => ({
+            reviewId: review.id,
+            category: f.category,
+            severity: f.severity,
+            quote: f.quote,
+            suggestion: f.suggestion,
+          })),
+        );
+      }
+      await db
+        .update(articles)
+        .set({ status: "reviewing" })
+        .where(eq(articles.id, articleId));
+      revalidatePath(`/articles/${articleId}/review`);
+      revalidatePath(`/articles/${articleId}`);
+      return completedAiAction(result, "AI 审阅完成。");
+    },
+  );
+}
+
+export async function runAiReviewFromForm(formData: FormData): Promise<AiActionResult> {
+  const articleId = Number(formData.get("articleId"));
+  const platform = String(formData.get("platform") ?? "");
+  if (!articleId) return { ok: false, message: "文章不存在。", tone: "danger" };
+  return runAiReview(articleId, platform || undefined);
 }
 
 /** 人工审阅意见 */
@@ -91,27 +122,42 @@ export async function addHumanFinding(formData: FormData) {
  * AI 润色预览：按建议改写引用片段（找得到原文时）或整篇（找不到时）。
  * 只生成预览，不落库；用户在写作页确认后由编辑器回写并保存新版本。
  */
-export async function polishFinding(articleId: number, findingId: number) {
-  const finding = await db.query.reviewFindings.findFirst({
-    where: eq(reviewFindings.id, findingId),
-  });
-  const version = await db.query.articleVersions.findFirst({
-    where: eq(articleVersions.articleId, articleId),
-    orderBy: desc(articleVersions.versionNo),
-  });
-  if (!finding || !version) return null;
+export async function polishFinding(
+  articleId: number,
+  findingId: number,
+): Promise<AiActionResult<PolishPreview>> {
+  return runExclusiveAiAction<PolishPreview>(`polish:finding:${findingId}`, "polish-review-finding", async () => {
+    const finding = await db.query.reviewFindings.findFirst({
+      where: eq(reviewFindings.id, findingId),
+    });
+    const version = await db.query.articleVersions.findFirst({
+      where: eq(articleVersions.articleId, articleId),
+      orderBy: desc(articleVersions.versionNo),
+    });
+    if (!finding || !version) {
+      return { ok: false, message: "润色失败：没有可用版本。", tone: "danger" };
+    }
 
-  const quote = finding.quote.trim();
-  if (quote && version.contentHtml.includes(quote)) {
-    const revised = await aiPolishWithSuggestion(quote, finding.suggestion, false);
-    return { mode: "fragment" as const, original: quote, revised };
-  }
-  const revisedHtml = await aiPolishWithSuggestion(
-    version.contentHtml,
-    quote ? `${finding.suggestion}（相关原文：${quote}）` : finding.suggestion,
-    true,
-  );
-  return { mode: "document" as const, original: version.contentHtml, revised: revisedHtml };
+    const quote = finding.quote.trim();
+    if (quote && version.contentHtml.includes(quote)) {
+      const result = await aiPolishWithSuggestion(quote, finding.suggestion, false);
+      return completedAiAction(result, "润色预览已生成。", {
+        mode: "fragment",
+        original: quote,
+        revised: result.data,
+      });
+    }
+    const result = await aiPolishWithSuggestion(
+      version.contentHtml,
+      quote ? `${finding.suggestion}（相关原文：${quote}）` : finding.suggestion,
+      true,
+    );
+    return completedAiAction(result, "润色预览已生成。", {
+      mode: "document",
+      original: version.contentHtml,
+      revised: result.data,
+    });
+  });
 }
 
 /** 接受或忽略审阅建议 */

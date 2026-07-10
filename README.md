@@ -20,7 +20,8 @@ Drizzle 工具链：`bun run db:generate | db:migrate | db:push | db:studio`。
 
 复制 `.env.example` 为 `.env` 并填入任一供应商密钥（Anthropic / OpenAI / OpenAI 兼容网关），
 通过 Vercel AI SDK 抽象，模型可配置。**不配置密钥时所有 AI 能力自动降级为本地确定性
-mock，整条闭环仍可完整跑通**（工作台右上角会显示「mock 模式」）。
+mock，整条闭环仍可完整跑通**（工作台右上角会显示「mock 模式」）。真实 AI 请求默认
+30 秒超时；失败或超时后会明确提示 mock 兜底来源，不会静默伪装为真实 AI 成功。
 
 ## 核心模块
 

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { desc, eq } from "drizzle-orm";
-import fs from "node:fs";
+import fs from "node:fs/promises";
 import path from "node:path";
 import {
   db,
@@ -13,33 +13,40 @@ import {
   ASSET_DIR,
 } from "@/db";
 import { aiPackaging } from "@/lib/ai";
+import type { AiActionResult } from "@/lib/ai";
+import { completedAiAction, runExclusiveAiAction } from "@/lib/ai/action";
 
 /** 生成包装物料并与最新版本关联保存 */
-export async function generatePackaging(articleId: number) {
-  const article = await db.query.articles.findFirst({
-    where: eq(articles.id, articleId),
+export async function generatePackaging(articleId: number): Promise<AiActionResult> {
+  return runExclusiveAiAction(`packaging:article:${articleId}`, "generate-packaging", async () => {
+    const article = await db.query.articles.findFirst({
+      where: eq(articles.id, articleId),
+    });
+    const version = await db.query.articleVersions.findFirst({
+      where: eq(articleVersions.articleId, articleId),
+      orderBy: desc(articleVersions.versionNo),
+    });
+    if (!article || !version) {
+      return { ok: false, message: "没有可用于包装的文章版本。", tone: "danger" };
+    }
+    const result = await aiPackaging(article.title, version.contentText);
+    await db.insert(packagings).values({
+      articleId,
+      versionId: version.id,
+      titleCandidates: result.data.titleCandidates,
+      summary: result.data.summary,
+      coverPrompt: result.data.coverPrompt,
+      imagePrompts: result.data.imagePrompts,
+      cardStructure: { cards: result.data.cards },
+    });
+    await db
+      .update(articles)
+      .set({ status: "packaged" })
+      .where(eq(articles.id, articleId));
+    revalidatePath(`/articles/${articleId}/packaging`);
+    revalidatePath(`/articles/${articleId}`);
+    return completedAiAction(result, "包装物料已生成。");
   });
-  const version = await db.query.articleVersions.findFirst({
-    where: eq(articleVersions.articleId, articleId),
-    orderBy: desc(articleVersions.versionNo),
-  });
-  if (!article || !version) return;
-  const gen = await aiPackaging(article.title, version.contentText);
-  await db.insert(packagings).values({
-    articleId,
-    versionId: version.id,
-    titleCandidates: gen.titleCandidates,
-    summary: gen.summary,
-    coverPrompt: gen.coverPrompt,
-    imagePrompts: gen.imagePrompts,
-    cardStructure: { cards: gen.cards },
-  });
-  await db
-    .update(articles)
-    .set({ status: "packaged" })
-    .where(eq(articles.id, articleId));
-  revalidatePath(`/articles/${articleId}/packaging`);
-  revalidatePath(`/articles/${articleId}`);
 }
 
 /** 采用某个候选标题作为文章标题 */
@@ -78,7 +85,7 @@ export async function uploadAsset(formData: FormData) {
   const file = formData.get("file");
   if (!articleId || !(file instanceof File) || file.size === 0) return;
   const safeName = `${Date.now()}-${file.name.replace(/[^\w.\-㐀-鿿]/g, "_")}`;
-  fs.writeFileSync(
+  await fs.writeFile(
     path.join(ASSET_DIR, safeName),
     Buffer.from(await file.arrayBuffer()),
   );
@@ -96,8 +103,14 @@ export async function deleteAsset(assetId: number, articleId: number) {
   const asset = await db.query.assets.findFirst({ where: eq(assets.id, assetId) });
   if (asset) {
     const abs = path.resolve(asset.filePath);
-    if (abs.startsWith(path.resolve("data")) && fs.existsSync(abs)) {
-      fs.unlinkSync(abs);
+    if (abs.startsWith(path.resolve("data"))) {
+      try {
+        await fs.unlink(abs);
+      } catch (error) {
+        if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) {
+          throw error;
+        }
+      }
     }
     await db.delete(assets).where(eq(assets.id, assetId));
   }

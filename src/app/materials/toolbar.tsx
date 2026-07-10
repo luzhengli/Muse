@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { AiActionForm } from "@/components/ai-action";
 
 interface Props {
   collections: { id: number; name: string; count: number }[];
@@ -64,12 +65,16 @@ export function MaterialToolbar({ collections, materials }: Props) {
                       +加入所选
                     </Button>
                   )}
-                  <form action={generateTopicsFromCollection}>
+                  <AiActionForm
+                    action={generateTopicsFromCollection}
+                    label="生成选题 →"
+                    pendingLabel="生成中…"
+                    size="sm"
+                    variant="secondary"
+                    disabled={c.count === 0}
+                  >
                     <input type="hidden" name="collectionId" value={c.id} />
-                    <Button size="sm" variant="secondary" disabled={c.count === 0}>
-                      生成选题 →
-                    </Button>
-                  </form>
+                  </AiActionForm>
                 </div>
               ))}
             </div>

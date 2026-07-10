@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { saveVersion, rewriteText } from "@/actions/articles";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import type { AiActionResult } from "@/lib/ai";
+import { AiActionFeedback } from "@/components/ai-action";
 
 interface Props {
   articleId: number;
@@ -17,7 +19,9 @@ export function TiptapEditor({ articleId, initialHtml }: Props) {
   const [note, setNote] = useState("");
   const [saving, startSaving] = useTransition();
   const [rewriting, startRewriting] = useTransition();
-  const [message, setMessage] = useState("");
+  const [rewriteMode, setRewriteMode] = useState<"expand" | "rewrite" | "restructure" | null>(null);
+  const rewriteLockRef = useRef(false);
+  const [feedback, setFeedback] = useState<AiActionResult<unknown> | null>(null);
 
   const editor = useEditor({
     extensions: [StarterKit],
@@ -53,21 +57,32 @@ export function TiptapEditor({ articleId, initialHtml }: Props) {
     if (!editor) return;
     const { from, to, empty } = editor.state.selection;
     if (empty) {
-      setMessage("请先选中要处理的文字");
+      setFeedback({ ok: false, message: "请先选中要处理的文字。", tone: "danger" });
       return;
     }
+    if (rewriteLockRef.current) return;
+    rewriteLockRef.current = true;
+    setRewriteMode(mode);
+    setFeedback(null);
     const selectedText = editor.state.doc.textBetween(from, to, "\n");
     startRewriting(async () => {
-      const result = await rewriteText(selectedText, mode);
-      editor
-        .chain()
-        .focus()
-        .deleteRange({ from, to })
-        .insertContent(result)
-        .run();
-      setMessage(
-        mode === "expand" ? "已扩写" : mode === "restructure" ? "已重组" : "已改写",
-      );
+      try {
+        const result = await rewriteText(selectedText, mode);
+        if (result.ok && result.data) {
+          editor
+            .chain()
+            .focus()
+            .deleteRange({ from, to })
+            .insertContent(result.data)
+            .run();
+        }
+        setFeedback(result);
+      } catch {
+        setFeedback({ ok: false, message: "AI 请求未完成，请重试。", tone: "danger" });
+      } finally {
+        rewriteLockRef.current = false;
+        setRewriteMode(null);
+      }
     });
   }
 
@@ -77,7 +92,7 @@ export function TiptapEditor({ articleId, initialHtml }: Props) {
     startSaving(async () => {
       const { versionNo } = await saveVersion(articleId, html, note);
       setNote("");
-      setMessage(`已保存为 v${versionNo}`);
+      setFeedback({ ok: true, message: `已保存为 v${versionNo}。`, tone: "success" });
     });
   }
 
@@ -108,15 +123,15 @@ export function TiptapEditor({ articleId, initialHtml }: Props) {
         )}
         <span className="mx-1 h-4 w-px bg-(--color-border)" />
         <Button size="sm" variant="secondary" disabled={rewriting} onClick={() => handleRewrite("expand")}>
-          {rewriting ? "AI 处理中…" : "扩写选中"}
+          {rewriting && rewriteMode === "expand" ? "扩写中…" : "扩写选中"}
         </Button>
         <Button size="sm" variant="secondary" disabled={rewriting} onClick={() => handleRewrite("rewrite")}>
-          改写选中
+          {rewriting && rewriteMode === "rewrite" ? "改写中…" : "改写选中"}
         </Button>
         <Button size="sm" variant="secondary" disabled={rewriting} onClick={() => handleRewrite("restructure")}>
-          重组选中
+          {rewriting && rewriteMode === "restructure" ? "重组中…" : "重组选中"}
         </Button>
-        <span className="ml-auto text-xs text-(--color-muted)">{message}</span>
+        <AiActionFeedback result={feedback} className="ml-auto" />
       </div>
 
       <div className="rounded-(--radius-card) border border-(--color-border) bg-(--color-surface) px-6 py-4">

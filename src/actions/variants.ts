@@ -10,30 +10,44 @@ import {
   type Platform,
 } from "@/db";
 import { aiVariant } from "@/lib/ai";
+import type { AiActionResult } from "@/lib/ai";
+import { completedAiAction, runExclusiveAiAction } from "@/lib/ai/action";
 import { nowUnix } from "@/lib/utils";
 
 /** 从内容母版派生平台版本 */
-export async function generateVariant(articleId: number, platform: Platform) {
-  const article = await db.query.articles.findFirst({
-    where: eq(articles.id, articleId),
-  });
-  const version = await db.query.articleVersions.findFirst({
-    where: eq(articleVersions.articleId, articleId),
-    orderBy: desc(articleVersions.versionNo),
-  });
-  if (!article || !version) return;
-  const gen = await aiVariant(article.title, version.contentText, platform);
-  await db.insert(platformVariants).values({
-    articleId,
-    platform,
-    title: gen.title,
-    content: gen.content,
-    hashtags: gen.hashtags,
-    cta: gen.cta,
-    summary: gen.summary,
-    publishNote: gen.publishNote,
-  });
-  revalidatePath(`/articles/${articleId}/variants`);
+export async function generateVariant(
+  articleId: number,
+  platform: Platform,
+): Promise<AiActionResult> {
+  return runExclusiveAiAction(
+    `variant:article:${articleId}:${platform}`,
+    `generate-variant-${platform}`,
+    async () => {
+      const article = await db.query.articles.findFirst({
+        where: eq(articles.id, articleId),
+      });
+      const version = await db.query.articleVersions.findFirst({
+        where: eq(articleVersions.articleId, articleId),
+        orderBy: desc(articleVersions.versionNo),
+      });
+      if (!article || !version) {
+        return { ok: false, message: "没有可派生的文章版本。", tone: "danger" };
+      }
+      const result = await aiVariant(article.title, version.contentText, platform);
+      await db.insert(platformVariants).values({
+        articleId,
+        platform,
+        title: result.data.title,
+        content: result.data.content,
+        hashtags: result.data.hashtags,
+        cta: result.data.cta,
+        summary: result.data.summary,
+        publishNote: result.data.publishNote,
+      });
+      revalidatePath(`/articles/${articleId}/variants`);
+      return completedAiAction(result, "平台版本已派生。");
+    },
+  );
 }
 
 export async function updateVariant(formData: FormData) {

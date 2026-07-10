@@ -14,6 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input, Textarea, Select } from "@/components/ui/input";
 import { ListFilter } from "@/components/list-filter";
 import { Timeline } from "@/components/timeline";
+import { AiActionButton, AiActionForm } from "@/components/ai-action";
 import { PLATFORM_IDS, platformName } from "@/lib/platforms";
 import { groupByDay, inDateRange, parseDateRange } from "@/lib/utils";
 
@@ -125,24 +126,19 @@ export default async function TopicsPage({
                   </div>
                 )}
                 <div className="flex gap-2">
-                  <form
-                    action={async () => {
-                      "use server";
-                      await generateBriefAction(t.id);
-                    }}
-                  >
-                    <Button size="sm" variant="secondary">
-                      {t.brief ? "重新生成 Brief" : "生成创作 Brief"}
-                    </Button>
-                  </form>
-                  <form
-                    action={async () => {
-                      "use server";
-                      await createDraftFromTopic(t.id);
-                    }}
-                  >
-                    <Button size="sm">生成初稿 → 写作台</Button>
-                  </form>
+                  <AiActionButton
+                    action={generateBriefAction.bind(null, t.id)}
+                    label={t.brief ? "重新生成 Brief" : "生成创作 Brief"}
+                    pendingLabel="Brief 生成中…"
+                    size="sm"
+                    variant="secondary"
+                  />
+                  <AiActionButton
+                    action={createDraftFromTopic.bind(null, t.id)}
+                    label="生成初稿 → 写作台"
+                    pendingLabel="初稿生成中…"
+                    size="sm"
+                  />
                   <form
                     action={async () => {
                       "use server";
@@ -177,7 +173,12 @@ export default async function TopicsPage({
             <CardDescription>AI 会阅读集合内的语料，生成 3 个差异化选题卡片。</CardDescription>
           </CardHeader>
           <CardContent>
-            <form action={generateTopicsFromCollection} className="flex gap-2">
+            <AiActionForm
+              action={generateTopicsFromCollection}
+              label="生成选题卡片"
+              pendingLabel="选题生成中…"
+              formClassName="flex gap-2"
+            >
               <Select name="collectionId" required className="flex-1">
                 <option value="">选择素材集合…</option>
                 {cols.map((c) => (
@@ -186,8 +187,7 @@ export default async function TopicsPage({
                   </option>
                 ))}
               </Select>
-              <Button>生成选题卡片</Button>
-            </form>
+            </AiActionForm>
             {cols.length === 0 && (
               <p className="mt-2 text-xs text-(--color-muted)">
                 还没有素材集合，先到

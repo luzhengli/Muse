@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import type { Editor } from "@tiptap/react";
 import {
   runAiReview,
@@ -16,6 +16,8 @@ import { reviewCategoryLabel, severityLabel } from "@/lib/labels";
 import { PLATFORM_IDS, platformName } from "@/lib/platforms";
 import { fmtTime } from "@/lib/utils";
 import type { WorkbenchData, WbFinding } from "./types";
+import type { AiActionResult } from "@/lib/ai";
+import { AiActionFeedback } from "@/components/ai-action";
 
 interface Polish {
   findingId: number;
@@ -35,19 +37,47 @@ export function ReviewPanel({
   const [running, startRunning] = useTransition();
   const [polishing, startPolishing] = useTransition();
   const [applying, startApplying] = useTransition();
+  const [polishingId, setPolishingId] = useState<number | null>(null);
+  const runningRef = useRef(false);
+  const polishingRef = useRef(false);
   const [polish, setPolish] = useState<Polish | null>(null);
-  const [message, setMessage] = useState("");
+  const [feedback, setFeedback] = useState<AiActionResult<unknown> | null>(null);
   const [showHumanForm, setShowHumanForm] = useState(false);
 
   function handlePolish(finding: WbFinding) {
-    setMessage("");
+    if (polishingRef.current) return;
+    polishingRef.current = true;
+    setPolishingId(finding.id);
+    setFeedback(null);
     startPolishing(async () => {
-      const res = await polishFinding(data.articleId, finding.id);
-      if (!res) {
-        setMessage("润色失败：没有可用版本");
-        return;
+      try {
+        const res = await polishFinding(data.articleId, finding.id);
+        setFeedback(res);
+        if (res.ok && res.data) {
+          setPolish({ findingId: finding.id, ...res.data });
+        }
+      } catch {
+        setFeedback({ ok: false, message: "润色请求未完成，请重试。", tone: "danger" });
+      } finally {
+        polishingRef.current = false;
+        setPolishingId(null);
       }
-      setPolish({ findingId: finding.id, ...res });
+    });
+  }
+
+  function handleReview() {
+    if (runningRef.current) return;
+    runningRef.current = true;
+    setFeedback(null);
+    startRunning(async () => {
+      try {
+        const result = await runAiReview(data.articleId, platform || undefined);
+        setFeedback(result);
+      } catch {
+        setFeedback({ ok: false, message: "审阅请求未完成，请重试。", tone: "danger" });
+      } finally {
+        runningRef.current = false;
+      }
     });
   }
 
@@ -58,7 +88,11 @@ export function ReviewPanel({
       if (polish.mode === "fragment") {
         const html = editor.getHTML();
         if (!html.includes(polish.original)) {
-          setMessage("原文片段已变化，请手动处理或重新润色");
+          setFeedback({
+            ok: false,
+            message: "原文片段已变化，请手动处理或重新润色。",
+            tone: "danger",
+          });
           return;
         }
         next = html.replace(polish.original, polish.revised);
@@ -73,7 +107,11 @@ export function ReviewPanel({
       );
       await setFindingStatus(finding.id, data.articleId, "accepted");
       setPolish(null);
-      setMessage("已写入编辑器并保存新版本");
+      setFeedback({
+        ok: true,
+        message: "已写入编辑器并保存新版本。",
+        tone: "success",
+      });
     });
   }
 
@@ -102,12 +140,7 @@ export function ReviewPanel({
           <Button
             size="sm"
             disabled={busy || !data.versions.length}
-            onClick={() =>
-              startRunning(async () => {
-                await runAiReview(data.articleId, platform || undefined);
-                setMessage("审阅完成");
-              })
-            }
+            onClick={handleReview}
           >
             {running ? "审阅中…" : "执行"}
           </Button>
@@ -156,7 +189,7 @@ export function ReviewPanel({
         )}
       </div>
 
-      {message && <p className="text-xs text-(--color-primary)">{message}</p>}
+      <AiActionFeedback result={feedback} />
 
       {/* 审阅记录 */}
       {data.reviews.length === 0 && (
@@ -210,7 +243,7 @@ export function ReviewPanel({
                       disabled={busy}
                       onClick={() => handlePolish(f)}
                     >
-                      {polishing ? "润色中…" : "AI 润色"}
+                      {polishing && polishingId === f.id ? "润色中…" : "AI 润色"}
                     </Button>
                     <Button
                       size="sm"

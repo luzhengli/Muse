@@ -4,7 +4,7 @@ import { desc, eq, inArray } from "drizzle-orm";
 import { db, collections, collectionMaterials, materials, topics } from "@/db";
 import { generateTopicsFromCollection } from "@/actions/topics";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { AiActionForm } from "@/components/ai-action";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { fmtTime } from "@/lib/utils";
 
@@ -81,10 +81,14 @@ export default async function CollectionDetailPage({
             </div>
           )}
         </div>
-        <form action={generateTopicsFromCollection}>
+        <AiActionForm
+          action={generateTopicsFromCollection}
+          label="从集合生成选题 →"
+          pendingLabel="选题生成中…"
+          disabled={rows.length === 0}
+        >
           <input type="hidden" name="collectionId" value={collectionId} />
-          <Button disabled={rows.length === 0}>从集合生成选题 →</Button>
-        </form>
+        </AiActionForm>
       </div>
 
       {/* 集合内素材 */}

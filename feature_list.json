@@ -149,6 +149,17 @@
       ],
       "status": "done",
       "evidence": "浏览器验证：集合 1 详情显示 2 条素材、清洗进度 1/2、3 个已生成选题、生成选题按钮（2026-07-06）。素材库集合工具栏的集合名已链接到详情页。"
+    },
+    {
+      "id": "feat-016",
+      "name": "AI Interaction Reliability",
+      "description": "统一全部 AI 入口的即时 pending/disabled/error/source 反馈；真实 AI 调用增加超时、结构化日志和可区分的 mock 回退；写库型 AI Action 增加本地单实例并发互斥，避免快速重复点击产生重复请求或重复记录；低风险同步文件 IO 改为异步。",
+      "dependencies": [
+        "feat-008",
+        "feat-009"
+      ],
+      "status": "done",
+      "evidence": "2026-07-10：bun run typecheck / lint / build 通过；浏览器验证 topics Brief/初稿、工作台审阅/润色/包装、平台派生均显示真实 AI 或 mock 来源反馈，编辑器保持可用；X 平台派生按钮双击仅生成 1 条记录；服务端日志包含 action/provider/model/status/reason/durationMs；上传与资源读取/删除改用 fs/promises。"
     }
   ]
 }

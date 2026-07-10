@@ -2,11 +2,38 @@
 
 ## Current State
 
-**Last Updated:** 2026-07-06
-**Session ID:** real-ai-workbench-02
-**Active Feature:** feat-008 ~ feat-015 全部完成（真实 AI + 统一写作工作台 + 信息查找升级）
+**Last Updated:** 2026-07-10
+**Session ID:** ai-interaction-reliability-01
+**Active Feature:** feat-016 已完成（AI 交互性能与可靠性）
 
 ## Status
+
+### What's Done（本轮 feat-016）
+
+- [x] **AI 入口与调用链审计**：覆盖素材清洗、集合/选题生成、Brief、初稿、编辑器扩写/改写/重组、AI 审阅、按建议润色、包装物料、平台版本、复盘反哺；确认纯 Server Action 表单无 pending、已有工作台入口无异常处理、写库型生成操作存在并发重复窗口。
+- [x] **统一即时反馈**：新增 `AiActionButton` / `AiActionForm` / `AiActionFeedback`，topics、variants、素材清洗/集合、旧审阅/包装页、复盘入口均原位显示处理中状态并禁用；工作台改写、审阅、润色、包装增加精确动作文案和 success/warning/danger 反馈，编辑器不被全局锁定。
+- [x] **AI 结果状态与超时**：`src/lib/ai/index.ts` 全部真实调用统一返回 `AiResult<T>`；默认 30 秒超时（`MUSE_AI_TIMEOUT_MS` 可设 1~120 秒）；区分 real success、未配置 mock、超时 mock、provider error mock。
+- [x] **日志与溯源**：服务端结构化日志记录 action/provider/model/status/reason/durationMs/errorName/errorMessage，不记录 prompt 或密钥；初稿版本备注和 AI 审阅摘要持久化真实 AI / 本地 mock / 超时或失败兜底来源。
+- [x] **防重复写库**：写库型 AI Server Action 使用进程全局同键 Promise 互斥；生成初稿额外复用同选题已有文章；前端 handler 使用同步 ref 重入锁。浏览器对 X 平台派生按钮双击只产生 1 条版本记录。
+- [x] **同步 IO 收敛**：素材/图片上传、资源读取、stat、删除改用 `node:fs/promises`；数据库模块初始化的同步 mkdir 保留，避免为模块加载边界扩大架构改造。
+- [x] **Bun 原生依赖基线修复**：将 `better-sqlite3`、`sharp`、`esbuild` 加入 Bun trustedDependencies，恢复 `better-sqlite3` binding，使标准 build 可重复运行。
+
+### Verification（feat-016）
+
+- [x] `./init.sh`（完整标准验证通过）
+- [x] `bun run typecheck`
+- [x] `bun run lint`（0 warnings / errors；保留 Next 16 前迁移 ESLint CLI 的既有提示）
+- [x] `bun run build`
+- [x] `npx @google/design.md lint DESIGN.md`（0 errors / 0 warnings）
+- [x] 浏览器：Brief/审阅/润色/包装/平台派生的 mock 来源提示可见；初稿跳转正常；工作台 AI 长操作不锁编辑器；双击平台派生只生成 1 条记录；测试数据已清理。
+- [x] 服务端：实测日志包含 `action/provider/model/status/reason/durationMs`。
+
+### Decisions / Remaining Risks（feat-016）
+
+- **不引入后台队列**：本地单用户 MVP 继续使用 Server Action，请求最长占用到 AI 超时；局部 pending 让页面保持可交互。若未来部署多实例或任务超过 2 分钟，再引入持久任务表与轮询。
+- **互斥范围**：当前进程全局 Map 能覆盖本地单实例与 HMR 模块重载，不是跨进程分布式锁；多实例部署需数据库唯一键或幂等任务表。
+- **真实 provider 失败路径**：本工作树未配置密钥，浏览器验证覆盖未配置 mock 分支；真实 success/provider-error/timeout 分支由统一类型、AbortController、构建检查覆盖，仍建议在带密钥环境做一次超时与错误注入冒烟。
+- **既有窄屏限制**：375px 检查发现固定 208px 侧栏使平台版本页产生横向滚动，这是现有 app shell 响应式限制，本次未扩大到全站移动端重构。
 
 ### What's Done（本轮 feat-008 ~ feat-015）
 

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import fs from "node:fs";
+import fs from "node:fs/promises";
 import path from "node:path";
 import { db, assets, ASSET_DIR } from "@/db";
 
@@ -14,7 +14,7 @@ export async function uploadEditorImage(articleId: number, formData: FormData) {
   if (!(file instanceof File) || file.size === 0) return null;
   if (!(file.type ?? "").startsWith("image/")) return null;
   const safeName = `${Date.now()}-${file.name.replace(/[^\w.\-㐀-鿿]/g, "_") || "image"}`;
-  fs.writeFileSync(
+  await fs.writeFile(
     path.join(ASSET_DIR, safeName),
     Buffer.from(await file.arrayBuffer()),
   );

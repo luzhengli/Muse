@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input, Select } from "@/components/ui/input";
 import { fmtTime } from "@/lib/utils";
+import { AiActionButton } from "@/components/ai-action";
 
 export const dynamic = "force-dynamic";
 
@@ -69,14 +70,11 @@ export default async function PackagingPage({
         <p className="text-sm text-(--color-muted)">
           基于最新版本生成标题候选、摘要、封面与配图提示词、图文卡片结构，并管理本地图片。
         </p>
-        <form
-          action={async () => {
-            "use server";
-            await generatePackaging(articleId);
-          }}
-        >
-          <Button>{latestPack ? "重新生成包装物料" : "生成包装物料"}</Button>
-        </form>
+        <AiActionButton
+          action={generatePackaging.bind(null, articleId)}
+          label={latestPack ? "重新生成包装物料" : "生成包装物料"}
+          pendingLabel="包装生成中…"
+        />
       </div>
 
       {latestPack ? (

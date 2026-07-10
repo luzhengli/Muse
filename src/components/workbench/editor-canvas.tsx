@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { htmlToMarkdown, wrapHtmlDocument } from "@/lib/html-md";
 import { assetUrl, cn } from "@/lib/utils";
 import type { WorkbenchData } from "./types";
+import type { AiActionResult } from "@/lib/ai";
+import { AiActionFeedback } from "@/components/ai-action";
 
 type PreviewMode = null | "render" | "markdown";
 
@@ -33,7 +35,9 @@ export function EditorCanvas({
   const [note, setNote] = useState("");
   const [saving, startSaving] = useTransition();
   const [rewriting, startRewriting] = useTransition();
-  const [message, setMessage] = useState("");
+  const [rewriteMode, setRewriteMode] = useState<"expand" | "rewrite" | "restructure" | null>(null);
+  const rewriteLockRef = useRef(false);
+  const [feedback, setFeedback] = useState<AiActionResult<unknown> | null>(null);
   const [preview, setPreview] = useState<PreviewMode>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -64,16 +68,27 @@ export function EditorCanvas({
     if (!editor) return;
     const { from, to, empty } = editor.state.selection;
     if (empty) {
-      setMessage("请先选中要处理的文字");
+      setFeedback({ ok: false, message: "请先选中要处理的文字。", tone: "danger" });
       return;
     }
+    if (rewriteLockRef.current) return;
+    rewriteLockRef.current = true;
+    setRewriteMode(mode);
+    setFeedback(null);
     const selectedText = editor.state.doc.textBetween(from, to, "\n");
     startRewriting(async () => {
-      const result = await rewriteText(selectedText, mode);
-      editor.chain().focus().deleteRange({ from, to }).insertContent(result).run();
-      setMessage(
-        mode === "expand" ? "已扩写" : mode === "restructure" ? "已重组" : "已改写",
-      );
+      try {
+        const result = await rewriteText(selectedText, mode);
+        if (result.ok && result.data) {
+          editor.chain().focus().deleteRange({ from, to }).insertContent(result.data).run();
+        }
+        setFeedback(result);
+      } catch {
+        setFeedback({ ok: false, message: "AI 请求未完成，请重试。", tone: "danger" });
+      } finally {
+        rewriteLockRef.current = false;
+        setRewriteMode(null);
+      }
     });
   }
 
@@ -83,7 +98,7 @@ export function EditorCanvas({
     startSaving(async () => {
       const { versionNo } = await saveVersion(data.articleId, html, note);
       setNote("");
-      setMessage(`已保存为 v${versionNo}`);
+      setFeedback({ ok: true, message: `已保存为 v${versionNo}。`, tone: "success" });
     });
   }
 
@@ -101,7 +116,7 @@ export function EditorCanvas({
         "text/html;charset=utf-8",
       );
     }
-    setMessage(`已导出 .${kind}`);
+    setFeedback({ ok: true, message: `已导出 .${kind}。`, tone: "success" });
   }
 
   if (!editor) {
@@ -153,7 +168,7 @@ export function EditorCanvas({
           disabled={rewriting}
           onClick={() => handleRewrite("expand")}
         >
-          {rewriting ? "AI 处理中…" : "扩写选中"}
+          {rewriting && rewriteMode === "expand" ? "扩写中…" : "扩写选中"}
         </Button>
         <Button
           size="sm"
@@ -161,7 +176,7 @@ export function EditorCanvas({
           disabled={rewriting}
           onClick={() => handleRewrite("rewrite")}
         >
-          改写选中
+          {rewriting && rewriteMode === "rewrite" ? "改写中…" : "改写选中"}
         </Button>
         <Button
           size="sm"
@@ -169,7 +184,7 @@ export function EditorCanvas({
           disabled={rewriting}
           onClick={() => handleRewrite("restructure")}
         >
-          重组选中
+          {rewriting && rewriteMode === "restructure" ? "重组中…" : "重组选中"}
         </Button>
         <span className="mx-1 h-4 w-px bg-(--color-border)" />
         {toolbarButton("图文预览", preview === "render", () =>
@@ -180,7 +195,7 @@ export function EditorCanvas({
         )}
         {toolbarButton("导出 .md", false, () => handleExport("md"))}
         {toolbarButton("导出 .html", false, () => handleExport("html"))}
-        <span className="ml-auto text-xs text-(--color-muted)">{message}</span>
+        <AiActionFeedback result={feedback} className="ml-auto" />
       </div>
 
       {preview === "render" && (

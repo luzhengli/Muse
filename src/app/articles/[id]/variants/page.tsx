@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input, Textarea, Label } from "@/components/ui/input";
 import { PLATFORM_IDS, PLATFORMS, platformName } from "@/lib/platforms";
 import { fmtTime } from "@/lib/utils";
+import { AiActionButton } from "@/components/ai-action";
 
 export const dynamic = "force-dynamic";
 
@@ -51,17 +52,14 @@ export default async function VariantsPage({
         </p>
         <div className="flex gap-2">
           {PLATFORM_IDS.map((p) => (
-            <form
+            <AiActionButton
               key={p}
-              action={async () => {
-                "use server";
-                await generateVariant(articleId, p as Platform);
-              }}
-            >
-              <Button variant="secondary" size="sm">
-                派生{platformName(p)}版
-              </Button>
-            </form>
+              action={generateVariant.bind(null, articleId, p as Platform)}
+              label={`派生${platformName(p)}版`}
+              pendingLabel="派生中…"
+              variant="secondary"
+              size="sm"
+            />
           ))}
         </div>
       </div>

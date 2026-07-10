@@ -11,6 +11,8 @@ import {
   type Platform,
 } from "@/db";
 import { aiRetroTopic } from "@/lib/ai";
+import type { AiActionResult } from "@/lib/ai";
+import { completedAiAction, runExclusiveAiAction } from "@/lib/ai/action";
 
 /** 记录一次发布结果与互动数据（第一版手动录入） */
 export async function recordResult(formData: FormData) {
@@ -57,29 +59,35 @@ export async function createRetroNote(formData: FormData) {
 }
 
 /** 复盘结论反哺：一键转为下一轮选题 */
-export async function convertRetroToTopic(retroId: number) {
-  const note = await db.query.retroNotes.findFirst({
-    where: eq(retroNotes.id, retroId),
+export async function convertRetroToTopic(retroId: number): Promise<AiActionResult> {
+  return runExclusiveAiAction(`retro:topic:${retroId}`, "retro-to-topic", async () => {
+    const note = await db.query.retroNotes.findFirst({
+      where: eq(retroNotes.id, retroId),
+    });
+    if (!note) return { ok: false, message: "复盘记录不存在。", tone: "danger" };
+    if (note.convertedTopicId) {
+      return { ok: true, message: "该复盘已转为选题。", tone: "success" };
+    }
+    const result = await aiRetroTopic(note.insights, note.nextTopicHint);
+    const [topic] = await db
+      .insert(topics)
+      .values({
+        title: result.data.title,
+        targetAudience: result.data.targetAudience,
+        corePoints: result.data.corePoints,
+        angle: result.data.angle,
+        recommendedPlatforms: result.data.recommendedPlatforms,
+        origin: "retro",
+      })
+      .returning();
+    await db
+      .update(retroNotes)
+      .set({ convertedTopicId: topic.id })
+      .where(eq(retroNotes.id, retroId));
+    revalidatePath("/retro");
+    revalidatePath("/topics");
+    return completedAiAction(result, "已反哺为新选题。");
   });
-  if (!note || note.convertedTopicId) return;
-  const card = await aiRetroTopic(note.insights, note.nextTopicHint);
-  const [topic] = await db
-    .insert(topics)
-    .values({
-      title: card.title,
-      targetAudience: card.targetAudience,
-      corePoints: card.corePoints,
-      angle: card.angle,
-      recommendedPlatforms: card.recommendedPlatforms,
-      origin: "retro",
-    })
-    .returning();
-  await db
-    .update(retroNotes)
-    .set({ convertedTopicId: topic.id })
-    .where(eq(retroNotes.id, retroId));
-  revalidatePath("/retro");
-  revalidatePath("/topics");
 }
 
 export async function deleteRetroNote(id: number) {

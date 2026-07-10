@@ -6,6 +6,7 @@ import { cleanMaterial, deleteMaterial } from "@/actions/materials";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AiActionButton } from "@/components/ai-action";
 import { fmtTime } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -68,16 +69,12 @@ export default async function MaterialDetail({
           </div>
         </div>
         <div className="flex shrink-0 gap-2">
-          <form
-            action={async () => {
-              "use server";
-              await cleanMaterial(materialId);
-            }}
-          >
-            <Button variant="secondary">
-              {material.cleanStatus === "cleaned" ? "重新清洗" : "清洗为语料块"}
-            </Button>
-          </form>
+          <AiActionButton
+            action={cleanMaterial.bind(null, materialId)}
+            label={material.cleanStatus === "cleaned" ? "重新清洗" : "清洗为语料块"}
+            pendingLabel="清洗处理中…"
+            variant="secondary"
+          />
           <form
             action={async () => {
               "use server";

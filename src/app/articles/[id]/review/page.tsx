@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { desc, eq, inArray } from "drizzle-orm";
 import { db, articles, articleVersions, reviews, reviewFindings, topics } from "@/db";
-import { runAiReview, addHumanFinding, setFindingStatus } from "@/actions/review";
+import { runAiReviewFromForm, addHumanFinding, setFindingStatus } from "@/actions/review";
 import { ArticleHeader } from "@/components/article-header";
 import { ArticleTabs } from "@/components/article-tabs";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +11,7 @@ import { Input, Textarea, Select } from "@/components/ui/input";
 import { reviewCategoryLabel, severityLabel } from "@/lib/labels";
 import { PLATFORM_IDS, platformName } from "@/lib/platforms";
 import { fmtTime } from "@/lib/utils";
+import { AiActionForm } from "@/components/ai-action";
 
 export const dynamic = "force-dynamic";
 
@@ -65,14 +66,14 @@ export default async function ReviewPage({
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form
-              action={async (fd: FormData) => {
-                "use server";
-                const platform = String(fd.get("platform") ?? "");
-                await runAiReview(articleId, platform || undefined);
-              }}
-              className="flex gap-2"
+            <AiActionForm
+              action={runAiReviewFromForm}
+              label="执行 AI 审阅"
+              pendingLabel="审阅中…"
+              disabled={!latest}
+              formClassName="flex gap-2"
             >
+              <input type="hidden" name="articleId" value={articleId} />
               <Select name="platform" className="flex-1">
                 <option value="">通用审阅（不限定平台）</option>
                 {PLATFORM_IDS.map((p) => (
@@ -81,8 +82,7 @@ export default async function ReviewPage({
                   </option>
                 ))}
               </Select>
-              <Button disabled={!latest}>执行 AI 审阅</Button>
-            </form>
+            </AiActionForm>
           </CardContent>
         </Card>
 

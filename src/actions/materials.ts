@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { eq, inArray } from "drizzle-orm";
-import fs from "node:fs";
+import fs from "node:fs/promises";
 import path from "node:path";
 import {
   db,
@@ -14,6 +14,8 @@ import {
 } from "@/db";
 import { indexChunk, removeChunksFromIndex } from "@/db/fts";
 import { aiClean } from "@/lib/ai";
+import type { AiActionResult } from "@/lib/ai";
+import { completedAiAction, runExclusiveAiAction } from "@/lib/ai/action";
 import { nowUnix } from "@/lib/utils";
 
 function parseTags(raw: string | null | undefined): string[] {
@@ -102,7 +104,7 @@ export async function createFileMaterial(formData: FormData) {
   const safeName = `${Date.now()}-${file.name.replace(/[^\w.\-㐀-鿿]/g, "_")}`;
   const filePath = path.join(UPLOAD_DIR, safeName);
   const buf = Buffer.from(await file.arrayBuffer());
-  fs.writeFileSync(filePath, buf);
+  await fs.writeFile(filePath, buf);
 
   const isTextLike =
     /\.(txt|md|markdown|csv|json|html?)$/i.test(file.name) ||
@@ -122,35 +124,38 @@ export async function createFileMaterial(formData: FormData) {
 }
 
 /** 知识整理：清洗素材为语料块并生成摘要与标签 */
-export async function cleanMaterial(id: number) {
-  const material = await db.query.materials.findFirst({
-    where: eq(materials.id, id),
-  });
-  if (!material) return;
-  const result = await aiClean(material.title, material.rawContent);
+export async function cleanMaterial(id: number): Promise<AiActionResult> {
+  return runExclusiveAiAction(`clean:material:${id}`, "clean-material", async () => {
+    const material = await db.query.materials.findFirst({
+      where: eq(materials.id, id),
+    });
+    if (!material) return { ok: false, message: "素材不存在。", tone: "danger" };
+    const result = await aiClean(material.title, material.rawContent);
 
-  // 重建语料块与全文索引
-  removeChunksFromIndex(id);
-  await db.delete(materialChunks).where(eq(materialChunks.materialId, id));
-  for (const [i, content] of result.chunks.entries()) {
-    const [chunk] = await db
-      .insert(materialChunks)
-      .values({ materialId: id, orderIndex: i, content })
-      .returning();
-    indexChunk(chunk.id, id, content);
-  }
-  const mergedTags = [...new Set([...material.tags, ...result.tags])].slice(0, 8);
-  await db
-    .update(materials)
-    .set({
-      summary: result.summary,
-      tags: mergedTags,
-      cleanStatus: "cleaned",
-      updatedAt: nowUnix(),
-    })
-    .where(eq(materials.id, id));
-  revalidatePath("/materials");
-  revalidatePath(`/materials/${id}`);
+    // AI 完成后一次性重建语料块，避免请求失败时破坏现有索引。
+    removeChunksFromIndex(id);
+    await db.delete(materialChunks).where(eq(materialChunks.materialId, id));
+    for (const [i, content] of result.data.chunks.entries()) {
+      const [chunk] = await db
+        .insert(materialChunks)
+        .values({ materialId: id, orderIndex: i, content })
+        .returning();
+      indexChunk(chunk.id, id, content);
+    }
+    const mergedTags = [...new Set([...material.tags, ...result.data.tags])].slice(0, 8);
+    await db
+      .update(materials)
+      .set({
+        summary: result.data.summary,
+        tags: mergedTags,
+        cleanStatus: "cleaned",
+        updatedAt: nowUnix(),
+      })
+      .where(eq(materials.id, id));
+    revalidatePath("/materials");
+    revalidatePath(`/materials/${id}`);
+    return completedAiAction(result, "素材清洗完成。");
+  });
 }
 
 export async function deleteMaterial(id: number) {
