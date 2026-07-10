@@ -1,0 +1,47 @@
+DESIGN.md
+  s_23d2a56b4c9e25::t_64ffc934c89efb 37-41,74-80
+src/app/globals.css
+  s_23d2a56b4c9e25::t_90dfb091945912 28-34,39-212
+src/app/layout.tsx
+  s_23d2a56b4c9e25::t_f50a90132b7b5b 2,5,19-21
+src/app/materials/import-panel.tsx
+  s_23d2a56b4c9e25::t_35594097da195e 41,44
+src/app/template.tsx
+  s_23d2a56b4c9e25::t_a342ecdfbce309 1-3
+src/components/article-tabs.tsx
+  s_23d2a56b4c9e25::t_c420ca1b819080 24
+src/components/editor/tiptap-editor.tsx
+  s_23d2a56b4c9e25::t_15d0e296bcb2c1 11,45,125-141,143-159,161-177
+src/components/nav.tsx
+  s_23d2a56b4c9e25::t_5e79028e85a8b4 29,46
+src/components/ui/button.tsx
+  s_23d2a56b4c9e25::t_46d25472d29456 6
+src/components/ui/card.tsx
+  s_23d2a56b4c9e25::t_5b58cbc3e9ab7e 8
+src/components/workbench/editor-canvas.tsx
+  s_23d2a56b4c9e25::t_7498a033daeadd 12,56,168-172,174,177-181,186-190,192,195-199,204-208,210,213-217,232,258
+src/components/workbench/packaging-panel.tsx
+  s_23d2a56b4c9e25::t_ea9529b31dfbaf 16,19,98-101,103,106-110,117,219,269,276,290
+src/components/workbench/review-panel.tsx
+  s_23d2a56b4c9e25::t_c03e34665a5fa8 17,20,142-145,147,150,155,206,248-252,254,257-261,292
+src/components/workbench/workbench.tsx
+  s_23d2a56b4c9e25::t_5cdf7b48745a78 120,133-138
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "9e71ee84908aee948897f9934e1515a90c56f9cf",
+  "prompts": {},
+  "sessions": {
+    "s_23d2a56b4c9e25": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f4b92-f94a-7320-ad72-cec24721fb59",
+        "model": "unknown"
+      },
+      "human_author": "liluzheng <liluzheng@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
