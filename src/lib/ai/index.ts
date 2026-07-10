@@ -29,6 +29,13 @@ function aiTimeoutMs(): number {
     : DEFAULT_TIMEOUT_MS;
 }
 
+function mockDelayMs(): number {
+  const configured = Number(process.env.MUSE_AI_MOCK_DELAY_MS);
+  return Number.isFinite(configured) && configured > 0
+    ? Math.min(configured, 10_000)
+    : 0;
+}
+
 async function executeAi<T>(
   action: string,
   generate: (model: LanguageModel, signal: AbortSignal) => Promise<T>,
@@ -38,6 +45,10 @@ async function executeAi<T>(
   const startedAt = Date.now();
 
   if (!runtime.model) {
+    const delayMs = mockDelayMs();
+    if (delayMs > 0) {
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
     const durationMs = Date.now() - startedAt;
     console.info(
       "[muse-ai]",

@@ -16,6 +16,7 @@
 - [x] **AI pending 动效**：全部通用 AI Action 和工作台改写/审阅/润色/包装按钮使用闪光图标与伪元素流光；空闲态和 pending 态同槽交叉淡入，按钮宽度不跳动。
 - [x] **AI 结果过渡**：success/warning/danger 提示增加对应图标、soft 背景与 180ms 弹入；新审阅记录、润色预览、包装结果使用同一结果 reveal。
 - [x] **AI 产物到达动效**：新增按数据签名变化触发的 `AiResultTransition`，覆盖选题/Brief、素材清洗、AI 审阅、包装重新生成、平台派生和集合生成；首次打开页面不重播已有结果，避免整页同时动画。
+- [x] **可重复真实渲染 QA**：新增默认关闭的 `MUSE_AI_MOCK_DELAY_MS`，配合 `MUSE_AI_PROVIDER=mock` 可稳定观察长耗时 pending，不发送用户内容到外部模型；本轮以 800ms 延迟完成采样。
 - [x] **可访问性与性能**：AI 按钮维持 `aria-busy` / 动态 accessible name；`prefers-reduced-motion` 关闭页面、面板、反馈、流光和循环图标动画；未引入动画依赖。
 
 ### Verification（feat-017）
@@ -24,11 +25,16 @@
 - [x] `bun run lint`（0 warnings / errors）
 - [x] `bun run build`
 - [x] `npx @google/design.md lint DESIGN.md`（0 errors / 0 warnings）
-- [ ] 真实页面视觉节奏：当前 in-app Browser 安全策略拒绝 localhost，未绕过策略；需要在可访问本地页面的环境确认桌面、375px 与 reduced-motion 实际帧序列。
+- [x] **桌面真实渲染**（1280px）：首页与平台版本页层级、文案、按钮宽度正常，无横向溢出；页面切换点击后 8ms 为 `loading`，53ms 已进入新路由且页面仍在淡入，最终恢复 `idle`。
+- [x] **AI pending 真实帧**：60ms / 360ms 均为 `aria-busy=true`、disabled、`ai-action-pending`；流光 `muse-ai-shimmer` 的 transform 从 -62.872px 移至 2.272px，闪光 `muse-ai-sparkle` opacity 从 0.665 变为 0.999。
+- [x] **AI 结果真实帧**：新版本到达时 `muse-feedback-enter` 从 opacity 0、scale 0.98、translateY 4px 开始，180ms 后稳定为 opacity 1、transform identity；mock 来源 warning 清晰可见。
+- [x] **浏览器健康**：控制台 0 error / 0 warning；服务端 mock 日志两次均为 801ms；测试生成的平台版本已全部删除，文章 3 平台版本计数恢复为 0。
+- [x] **375px 验证已执行但失败**：视口 375px 时页面 `scrollWidth=627px`，固定 208px 侧栏导致主区逐字竖排与横向滚动；这是 app shell 响应式缺陷，不是动效导致。
+- [x] **reduced-motion 运行时规则检查**：真实页面 CSSOM 中加载 2 组 `prefers-reduced-motion: reduce` 规则，覆盖自定义动效和 Tailwind `motion-reduce` 工具；当前浏览器系统偏好为 false，控制接口不支持切换媒体偏好，未取得实际降级帧。
 
 ### Remaining Risk（feat-017）
 
-- 动效实现与生产构建已验证，但“是否足够丝滑”是渲染层与主观节奏问题。在完成真实页面观察前，feat-017 保持 `in-progress`。
+- 桌面页面切换、AI pending、结果到达和无报错运行已通过真实渲染；375px app shell 明确失败，需在获得移动端响应式改造授权后修复。reduced-motion 规则已在运行时加载，但实际系统偏好帧仍缺少可切换环境。feat-017 保持 `in-progress`。
 
 ### What's Done（本轮 feat-016）
 

@@ -22,6 +22,8 @@ Drizzle 工具链：`bun run db:generate | db:migrate | db:push | db:studio`。
 通过 Vercel AI SDK 抽象，模型可配置。**不配置密钥时所有 AI 能力自动降级为本地确定性
 mock，整条闭环仍可完整跑通**（工作台右上角会显示「mock 模式」）。真实 AI 请求默认
 30 秒超时；失败或超时后会明确提示 mock 兜底来源，不会静默伪装为真实 AI 成功。
+需要观察 AI pending 动效时，可临时设置 `MUSE_AI_PROVIDER=mock` 与
+`MUSE_AI_MOCK_DELAY_MS=800`；该延迟默认关闭，最大 10 秒，不影响正常使用。
 
 ## 核心模块
 
