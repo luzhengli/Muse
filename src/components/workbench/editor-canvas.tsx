@@ -9,7 +9,7 @@ import { htmlToMarkdown, wrapHtmlDocument } from "@/lib/html-md";
 import { assetUrl, cn } from "@/lib/utils";
 import type { WorkbenchData } from "./types";
 import type { AiActionResult } from "@/lib/ai";
-import { AiActionFeedback } from "@/components/ai-action";
+import { AiActionFeedback, AiButtonContent } from "@/components/ai-action";
 
 type PreviewMode = null | "render" | "markdown";
 
@@ -53,7 +53,7 @@ export function EditorCanvas({
           onClick();
         }}
         className={cn(
-          "rounded px-2 py-1 text-xs",
+          "interactive-motion rounded px-2 py-1 text-xs",
           isActive
             ? "bg-(--color-primary-soft) font-semibold text-(--color-primary)"
             : "text-(--color-muted) hover:bg-(--color-muted-bg)",
@@ -165,26 +165,56 @@ export function EditorCanvas({
         <Button
           size="sm"
           variant="secondary"
+          className={cn(
+            "ai-action-trigger",
+            rewriting && rewriteMode === "expand" &&
+              "ai-action-pending disabled:opacity-100",
+          )}
           disabled={rewriting}
+          aria-busy={rewriting && rewriteMode === "expand"}
           onClick={() => handleRewrite("expand")}
         >
-          {rewriting && rewriteMode === "expand" ? "扩写中…" : "扩写选中"}
+          <AiButtonContent
+            pending={rewriting && rewriteMode === "expand"}
+            label="扩写选中"
+            pendingLabel="扩写中…"
+          />
         </Button>
         <Button
           size="sm"
           variant="secondary"
+          className={cn(
+            "ai-action-trigger",
+            rewriting && rewriteMode === "rewrite" &&
+              "ai-action-pending disabled:opacity-100",
+          )}
           disabled={rewriting}
+          aria-busy={rewriting && rewriteMode === "rewrite"}
           onClick={() => handleRewrite("rewrite")}
         >
-          {rewriting && rewriteMode === "rewrite" ? "改写中…" : "改写选中"}
+          <AiButtonContent
+            pending={rewriting && rewriteMode === "rewrite"}
+            label="改写选中"
+            pendingLabel="改写中…"
+          />
         </Button>
         <Button
           size="sm"
           variant="secondary"
+          className={cn(
+            "ai-action-trigger",
+            rewriting && rewriteMode === "restructure" &&
+              "ai-action-pending disabled:opacity-100",
+          )}
           disabled={rewriting}
+          aria-busy={rewriting && rewriteMode === "restructure"}
           onClick={() => handleRewrite("restructure")}
         >
-          {rewriting && rewriteMode === "restructure" ? "重组中…" : "重组选中"}
+          <AiButtonContent
+            pending={rewriting && rewriteMode === "restructure"}
+            label="重组选中"
+            pendingLabel="重组中…"
+          />
         </Button>
         <span className="mx-1 h-4 w-px bg-(--color-border)" />
         {toolbarButton("图文预览", preview === "render", () =>
@@ -199,7 +229,7 @@ export function EditorCanvas({
       </div>
 
       {preview === "render" && (
-        <div className="rounded-(--radius-card) border border-(--color-border) bg-(--color-surface) px-6 py-4">
+        <div className="panel-transition rounded-(--radius-card) border border-(--color-border) bg-(--color-surface) px-6 py-4">
           <div className="mb-3 text-xs text-(--color-muted)">
             图文预览（含包装应用后的封面与摘要）
           </div>
@@ -225,7 +255,7 @@ export function EditorCanvas({
       )}
 
       {preview === "markdown" && (
-        <pre className="max-h-[32rem] overflow-auto rounded-(--radius-card) border border-(--color-border) bg-(--color-muted-bg) p-4 font-mono text-xs leading-relaxed whitespace-pre-wrap">
+        <pre className="panel-transition max-h-[32rem] overflow-auto rounded-(--radius-card) border border-(--color-border) bg-(--color-muted-bg) p-4 font-mono text-xs leading-relaxed whitespace-pre-wrap">
           {htmlToMarkdown(editor.getHTML())}
         </pre>
       )}

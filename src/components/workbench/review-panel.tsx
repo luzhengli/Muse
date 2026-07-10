@@ -14,10 +14,10 @@ import { Button } from "@/components/ui/button";
 import { Input, Textarea, Select } from "@/components/ui/input";
 import { reviewCategoryLabel, severityLabel } from "@/lib/labels";
 import { PLATFORM_IDS, platformName } from "@/lib/platforms";
-import { fmtTime } from "@/lib/utils";
+import { cn, fmtTime } from "@/lib/utils";
 import type { WorkbenchData, WbFinding } from "./types";
 import type { AiActionResult } from "@/lib/ai";
-import { AiActionFeedback } from "@/components/ai-action";
+import { AiActionFeedback, AiButtonContent } from "@/components/ai-action";
 
 interface Polish {
   findingId: number;
@@ -139,15 +139,20 @@ export function ReviewPanel({
           </Select>
           <Button
             size="sm"
+            className={cn(
+              "ai-action-trigger",
+              running && "ai-action-pending disabled:opacity-100",
+            )}
             disabled={busy || !data.versions.length}
+            aria-busy={running}
             onClick={handleReview}
           >
-            {running ? "审阅中…" : "执行"}
+            <AiButtonContent pending={running} label="执行" pendingLabel="审阅中…" />
           </Button>
         </div>
         <button
           type="button"
-          className="text-xs text-(--color-primary) hover:underline"
+          className="interactive-motion rounded px-1 text-xs text-(--color-primary) hover:underline"
           onClick={() => setShowHumanForm((v) => !v)}
         >
           {showHumanForm ? "收起人工意见表单" : "+ 添加人工审阅意见"}
@@ -198,7 +203,7 @@ export function ReviewPanel({
         </p>
       )}
       {data.reviews.map((r) => (
-        <div key={r.id} className="space-y-1.5">
+        <div key={r.id} className="ai-result-reveal space-y-1.5">
           <div className="flex items-center gap-1.5 text-xs text-(--color-muted)">
             <span className="font-semibold text-(--color-foreground)">
               {r.type === "ai" ? "🤖 AI 审阅" : "👤 人工审阅"}
@@ -240,10 +245,20 @@ export function ReviewPanel({
                     <Button
                       size="sm"
                       variant="secondary"
+                      className={cn(
+                        "ai-action-trigger",
+                        polishing && polishingId === f.id &&
+                          "ai-action-pending disabled:opacity-100",
+                      )}
                       disabled={busy}
+                      aria-busy={polishing && polishingId === f.id}
                       onClick={() => handlePolish(f)}
                     >
-                      {polishing && polishingId === f.id ? "润色中…" : "AI 润色"}
+                      <AiButtonContent
+                        pending={polishing && polishingId === f.id}
+                        label="AI 润色"
+                        pendingLabel="润色中…"
+                      />
                     </Button>
                     <Button
                       size="sm"
@@ -274,7 +289,7 @@ export function ReviewPanel({
 
                 {/* AI 润色预览 */}
                 {isPolished && polish && (
-                  <div className="mt-2 space-y-1.5 rounded-(--radius-control) bg-(--color-muted-bg) p-2">
+                  <div className="ai-result-reveal mt-2 space-y-1.5 rounded-(--radius-control) bg-(--color-muted-bg) p-2">
                     <div className="text-[10px] font-semibold text-(--color-muted)">
                       润色预览（{polish.mode === "fragment" ? "片段替换" : "全文改写"}）
                     </div>

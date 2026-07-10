@@ -38,9 +38,10 @@ export function ImportPanel() {
           {tabs.map((t) => (
             <button
               key={t.id}
+              type="button"
               onClick={() => setTab(t.id)}
               className={cn(
-                "rounded-(--radius-control) px-3 py-1.5 text-xs font-medium",
+                "interactive-motion rounded-(--radius-control) px-3 py-1.5 text-xs font-medium",
                 tab === t.id
                   ? "bg-(--color-primary-soft) text-(--color-primary)"
                   : "text-(--color-muted) hover:bg-(--color-muted-bg)",

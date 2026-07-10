@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
+import { startRouteProgress } from "@/lib/navigation-motion";
 import { cn } from "@/lib/utils";
 
 export interface ListFilterProps {
@@ -43,6 +44,8 @@ export function ListFilter({
       if (value) next.set(key, value);
       else next.delete(key);
     }
+    if (next.toString() === params.toString()) return;
+    startRouteProgress();
     router.push(`${basePath}?${next.toString()}`);
   }
 
@@ -123,7 +126,7 @@ export function ListFilter({
               type="button"
               onClick={() => setParams({ view: v.id === "list" ? "" : v.id })}
               className={cn(
-                "px-2.5 py-1.5 text-xs",
+                "interactive-motion px-2.5 py-1.5 text-xs",
                 view === v.id
                   ? "bg-(--color-primary-soft) font-semibold text-(--color-primary)"
                   : "text-(--color-muted) hover:bg-(--color-muted-bg)",
@@ -135,7 +138,14 @@ export function ListFilter({
         </div>
 
         {hasFilter && (
-          <Button size="sm" variant="ghost" onClick={() => router.push(basePath)}>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              startRouteProgress();
+              router.push(basePath);
+            }}
+          >
             清除
           </Button>
         )}
@@ -149,6 +159,7 @@ export function ListFilter({
               key={t}
               type="button"
               onClick={() => setParams({ tag: t === tag ? "" : t })}
+              className="interactive-motion rounded-full"
             >
               <Badge tone={t === tag ? "primary" : "default"}>{t}</Badge>
             </button>

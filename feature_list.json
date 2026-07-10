@@ -160,6 +160,16 @@
       ],
       "status": "done",
       "evidence": "2026-07-10：bun run typecheck / lint / build 通过；浏览器验证 topics Brief/初稿、工作台审阅/润色/包装、平台派生均显示真实 AI 或 mock 来源反馈，编辑器保持可用；X 平台派生按钮双击仅生成 1 条记录；服务端日志包含 action/provider/model/status/reason/durationMs；上传与资源读取/删除改用 fs/promises。"
+    },
+    {
+      "id": "feat-017",
+      "name": "Motion and Transition Polish",
+      "description": "为全站页面切换、导航、按钮、工作台面板和 AI pending/result 状态增加克制、可中断、支持 prefers-reduced-motion 的过渡动效，提升操作响应感与连续性，不引入重型动画依赖。",
+      "dependencies": [
+        "feat-016"
+      ],
+      "status": "in-progress",
+      "evidence": "2026-07-10：页面 template 淡入、普通链接/历史导航/AI 成功跳转/筛选跳转统一顶部进度反馈并带 12 秒异常收尾、按钮/导航按压反馈、工作台 tab/预览过渡、全部 AI pending 流光+闪光图标+固定宽度交叉淡入、AI 结果语义提示弹入、prefers-reduced-motion 降级已实现；typecheck/lint/build/DESIGN lint 通过。当前本地浏览器策略禁止访问 localhost，待真实页面视觉节奏确认后标记 done。"
     }
   ]
 }

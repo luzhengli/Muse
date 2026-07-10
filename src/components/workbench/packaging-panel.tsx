@@ -13,10 +13,10 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
-import { assetUrl, escapeHtml, fmtTime } from "@/lib/utils";
+import { assetUrl, cn, escapeHtml, fmtTime } from "@/lib/utils";
 import type { WorkbenchData } from "./types";
 import type { AiActionResult } from "@/lib/ai";
-import { AiActionFeedback } from "@/components/ai-action";
+import { AiActionFeedback, AiButtonContent } from "@/components/ai-action";
 
 const kindLabel: Record<string, string> = {
   cover: "封面",
@@ -95,17 +95,26 @@ export function PackagingPanel({
         </div>
         <Button
           size="sm"
+          className={cn(
+            "ai-action-trigger",
+            generating && "ai-action-pending disabled:opacity-100",
+          )}
           disabled={generating || !data.versions.length}
+          aria-busy={generating}
           onClick={generate}
         >
-          {generating ? "生成中…" : pack ? "重新生成" : "生成物料"}
+          <AiButtonContent
+            pending={generating}
+            label={pack ? "重新生成" : "生成物料"}
+            pendingLabel="生成中…"
+          />
         </Button>
       </div>
 
       <AiActionFeedback result={feedback} />
 
       {pack && (
-        <>
+        <div className="ai-result-reveal space-y-3">
           {/* 标题候选 */}
           <div className="space-y-1.5">
             <div className="text-xs font-semibold">标题候选 → 应用为文章标题</div>
@@ -207,7 +216,7 @@ export function PackagingPanel({
               </div>
             </div>
           )}
-        </>
+        </div>
       )}
 
       {/* 图片资产 */}
@@ -257,14 +266,14 @@ export function PackagingPanel({
               <div className="flex flex-col gap-0.5">
                 <button
                   type="button"
-                  className="text-[10px] text-(--color-primary) hover:underline"
+                  className="interactive-motion rounded text-[10px] text-(--color-primary) hover:underline"
                   onClick={() => insertImage(a.filePath, a.fileName)}
                 >
                   插入正文
                 </button>
                 <button
                   type="button"
-                  className="text-[10px] text-(--color-primary) hover:underline"
+                  className="interactive-motion rounded text-[10px] text-(--color-primary) hover:underline"
                   onClick={() =>
                     startMutating(() =>
                       setCoverAsset(
@@ -278,7 +287,7 @@ export function PackagingPanel({
                 </button>
                 <button
                   type="button"
-                  className="text-[10px] text-(--color-muted) hover:underline"
+                  className="interactive-motion rounded text-[10px] text-(--color-muted) hover:underline"
                   onClick={() => startMutating(() => deleteAsset(a.id, data.articleId))}
                 >
                   删除

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import "./globals.css";
 import { SideNav } from "@/components/nav";
+import { RouteProgress } from "@/components/route-progress";
 
 export const metadata: Metadata = {
   title: "Muse · 创作工厂",
@@ -14,6 +16,9 @@ export default function RootLayout({
   return (
     <html lang="zh-CN">
       <body className="antialiased">
+        <Suspense fallback={null}>
+          <RouteProgress />
+        </Suspense>
         <div className="flex min-h-screen">
           <SideNav />
           <main className="min-w-0 flex-1 px-8 py-6">{children}</main>

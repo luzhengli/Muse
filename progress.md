@@ -3,10 +3,31 @@
 ## Current State
 
 **Last Updated:** 2026-07-10
-**Session ID:** ai-interaction-reliability-01
-**Active Feature:** feat-016 已完成（AI 交互性能与可靠性）
+**Session ID:** motion-transition-polish-01
+**Active Feature:** feat-017 进行中（全站动效与页面过渡）
 
 ## Status
+
+### Current Work（本轮 feat-017）
+
+- [x] **动效方向写入设计系统**：`DESIGN.md` 新增 fast/normal/slow 时长与统一 ease-out 曲线；动效只使用 opacity/transform，保持 Muse「安静的工作室」而不是高调动画站。
+- [x] **页面切换连续性**：根布局增加全站顶部细进度线；App Router `template.tsx` 在新页面挂载时执行 220ms 轻微上移淡入，旧页面在数据加载期间保持可见；普通链接、前进/后退、AI 成功跳转和列表筛选的程序化导航统一即时启动进度反馈，12 秒安全收尾防止异常导航留下常驻进度条。
+- [x] **基础交互反馈**：Button、侧栏、文章 tabs、筛选视图、素材导入 tabs、编辑器工具栏与工作台 tabs 增加 120~150ms 按压缩放和精确属性过渡。
+- [x] **AI pending 动效**：全部通用 AI Action 和工作台改写/审阅/润色/包装按钮使用闪光图标与伪元素流光；空闲态和 pending 态同槽交叉淡入，按钮宽度不跳动。
+- [x] **AI 结果过渡**：success/warning/danger 提示增加对应图标、soft 背景与 180ms 弹入；新审阅记录、润色预览、包装结果使用同一结果 reveal。
+- [x] **可访问性与性能**：AI 按钮维持 `aria-busy` / 动态 accessible name；`prefers-reduced-motion` 关闭页面、面板、反馈、流光和循环图标动画；未引入动画依赖。
+
+### Verification（feat-017）
+
+- [x] `bun run typecheck`
+- [x] `bun run lint`（0 warnings / errors）
+- [x] `bun run build`
+- [x] `npx @google/design.md lint DESIGN.md`（0 errors / 0 warnings）
+- [ ] 真实页面视觉节奏：当前 in-app Browser 安全策略拒绝 localhost，未绕过策略；需要在可访问本地页面的环境确认桌面、375px 与 reduced-motion 实际帧序列。
+
+### Remaining Risk（feat-017）
+
+- 动效实现与生产构建已验证，但“是否足够丝滑”是渲染层与主观节奏问题。在完成真实页面观察前，feat-017 保持 `in-progress`。
 
 ### What's Done（本轮 feat-016）
 

@@ -34,6 +34,11 @@ rounded:
   card: "0.75rem"
   control: "0.5rem"
   badge: "9999px"
+motion:
+  fast: "120ms"
+  normal: "220ms"
+  slow: "320ms"
+  easing: "cubic-bezier(0.16, 1, 0.3, 1)"
 ---
 
 ## Overview
@@ -65,6 +70,13 @@ Muse 是面向自媒体创作者的本地优先创作工厂。视觉基调为「
 
 层级靠边框与浅阴影表达：卡片 `border + shadow-sm`；hover 将边框变为 primary 色；
 不使用大面积阴影与叠层模糊。焦点态用 2px primary outline（offset 2px）。
+
+## Motion
+
+- 页面切换使用 220ms 的轻微上移淡入，导航开始时以顶部细进度条立即回应；不做大幅滑动或全屏遮罩。
+- AI 操作按钮在 pending 时原位显示闪光图标与流光，结果提示用 160ms 缩放淡入；编辑器和无关区域保持可交互。
+- 工作台 tab 内容使用 180ms 淡入位移，按钮按下缩放至 0.97；动画仅使用 opacity 与 transform。
+- 所有动效遵守 `prefers-reduced-motion`，降级为无位移、无循环动画的即时状态变化。
 
 ## Shapes
 

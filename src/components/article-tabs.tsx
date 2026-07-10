@@ -21,7 +21,7 @@ export function ArticleTabs({ articleId }: { articleId: number }) {
             key={t.href}
             href={t.href}
             className={cn(
-              "-mb-px border-b-2 px-3 py-2 text-sm font-medium",
+              "interactive-motion -mb-px border-b-2 px-3 py-2 text-sm font-medium",
               active
                 ? "border-(--color-primary) text-(--color-primary)"
                 : "border-transparent text-(--color-muted) hover:text-(--color-foreground)",

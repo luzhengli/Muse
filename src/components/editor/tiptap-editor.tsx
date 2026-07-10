@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import type { AiActionResult } from "@/lib/ai";
-import { AiActionFeedback } from "@/components/ai-action";
+import { AiActionFeedback, AiButtonContent } from "@/components/ai-action";
 
 interface Props {
   articleId: number;
@@ -42,7 +42,7 @@ export function TiptapEditor({ articleId, initialHtml }: Props) {
           onClick();
         }}
         className={cn(
-          "rounded px-2 py-1 text-xs",
+          "interactive-motion rounded px-2 py-1 text-xs",
           isActive
             ? "bg-(--color-primary-soft) font-semibold text-(--color-primary)"
             : "text-(--color-muted) hover:bg-(--color-muted-bg)",
@@ -122,14 +122,59 @@ export function TiptapEditor({ articleId, initialHtml }: Props) {
           editor.chain().focus().toggleBlockquote().run(),
         )}
         <span className="mx-1 h-4 w-px bg-(--color-border)" />
-        <Button size="sm" variant="secondary" disabled={rewriting} onClick={() => handleRewrite("expand")}>
-          {rewriting && rewriteMode === "expand" ? "扩写中…" : "扩写选中"}
+        <Button
+          size="sm"
+          variant="secondary"
+          className={cn(
+            "ai-action-trigger",
+            rewriting && rewriteMode === "expand" &&
+              "ai-action-pending disabled:opacity-100",
+          )}
+          disabled={rewriting}
+          aria-busy={rewriting && rewriteMode === "expand"}
+          onClick={() => handleRewrite("expand")}
+        >
+          <AiButtonContent
+            pending={rewriting && rewriteMode === "expand"}
+            label="扩写选中"
+            pendingLabel="扩写中…"
+          />
         </Button>
-        <Button size="sm" variant="secondary" disabled={rewriting} onClick={() => handleRewrite("rewrite")}>
-          {rewriting && rewriteMode === "rewrite" ? "改写中…" : "改写选中"}
+        <Button
+          size="sm"
+          variant="secondary"
+          className={cn(
+            "ai-action-trigger",
+            rewriting && rewriteMode === "rewrite" &&
+              "ai-action-pending disabled:opacity-100",
+          )}
+          disabled={rewriting}
+          aria-busy={rewriting && rewriteMode === "rewrite"}
+          onClick={() => handleRewrite("rewrite")}
+        >
+          <AiButtonContent
+            pending={rewriting && rewriteMode === "rewrite"}
+            label="改写选中"
+            pendingLabel="改写中…"
+          />
         </Button>
-        <Button size="sm" variant="secondary" disabled={rewriting} onClick={() => handleRewrite("restructure")}>
-          {rewriting && rewriteMode === "restructure" ? "重组中…" : "重组选中"}
+        <Button
+          size="sm"
+          variant="secondary"
+          className={cn(
+            "ai-action-trigger",
+            rewriting && rewriteMode === "restructure" &&
+              "ai-action-pending disabled:opacity-100",
+          )}
+          disabled={rewriting}
+          aria-busy={rewriting && rewriteMode === "restructure"}
+          onClick={() => handleRewrite("restructure")}
+        >
+          <AiButtonContent
+            pending={rewriting && rewriteMode === "restructure"}
+            label="重组选中"
+            pendingLabel="重组中…"
+          />
         </Button>
         <AiActionFeedback result={feedback} className="ml-auto" />
       </div>

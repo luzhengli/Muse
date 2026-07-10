@@ -26,7 +26,7 @@ export function SideNav() {
   return (
     <aside className="flex w-52 shrink-0 flex-col border-r border-(--color-border) bg-(--color-surface) px-3 py-5">
       <Link href="/" className="mb-6 flex items-center gap-2 px-2">
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-(--color-primary) text-lg font-bold text-white">
+        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-(--color-primary) text-lg font-bold text-white transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] active:scale-95 motion-reduce:scale-100 motion-reduce:transition-none">
           M
         </span>
         <div>
@@ -43,7 +43,7 @@ export function SideNav() {
               key={href}
               href={href}
               className={cn(
-                "flex items-center gap-2.5 rounded-(--radius-control) px-2.5 py-2 text-sm transition-colors",
+                "flex touch-manipulation items-center gap-2.5 rounded-(--radius-control) px-2.5 py-2 text-sm transition-[color,background-color,transform] duration-150 ease-[cubic-bezier(0.16,1,0.3,1)] active:scale-[0.98] motion-reduce:scale-100 motion-reduce:transition-none",
                 active
                   ? "bg-(--color-primary-soft) font-medium text-(--color-primary)"
                   : "text-(--color-muted) hover:bg-(--color-muted-bg) hover:text-(--color-foreground)",

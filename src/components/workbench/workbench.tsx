@@ -117,7 +117,7 @@ export function Workbench({ data }: { data: WorkbenchData }) {
                 type="button"
                 onClick={() => setTab(t.id)}
                 className={cn(
-                  "flex-1 rounded-(--radius-control) px-2 py-1.5 text-xs font-medium",
+                  "flex-1 rounded-(--radius-control) px-2 py-1.5 text-xs font-medium transition-[color,background-color,transform] duration-150 ease-[cubic-bezier(0.16,1,0.3,1)] active:scale-[0.97] motion-reduce:scale-100 motion-reduce:transition-none",
                   tab === t.id
                     ? "bg-(--color-primary-soft) text-(--color-primary)"
                     : "text-(--color-muted) hover:bg-(--color-muted-bg)",
@@ -130,10 +130,12 @@ export function Workbench({ data }: { data: WorkbenchData }) {
           })}
         </div>
         <div className="max-h-[calc(100vh-14rem)] overflow-auto rounded-b-(--radius-card) border border-(--color-border) bg-(--color-surface) p-3">
-          {tab === "review" && <ReviewPanel editor={editor} data={data} />}
-          {tab === "packaging" && <PackagingPanel editor={editor} data={data} />}
-          {tab === "versions" && <VersionPanel data={data} />}
-          {tab === "materials" && <MaterialsPanel data={data} />}
+          <div key={tab} className="panel-transition">
+            {tab === "review" && <ReviewPanel editor={editor} data={data} />}
+            {tab === "packaging" && <PackagingPanel editor={editor} data={data} />}
+            {tab === "versions" && <VersionPanel data={data} />}
+            {tab === "materials" && <MaterialsPanel data={data} />}
+          </div>
         </div>
       </div>
     </div>
