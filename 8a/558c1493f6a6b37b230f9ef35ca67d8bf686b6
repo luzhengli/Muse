@@ -1,0 +1,29 @@
+.env.example
+  s_23d2a56b4c9e25::t_0abf5f8f253056 18-21
+README.md
+  s_23d2a56b4c9e25::t_a67afc4818c180 25-26
+feature_list.json
+  s_23d2a56b4c9e25::t_67759e056e559e 172
+progress.md
+  s_23d2a56b4c9e25::t_a0f092bde29df2 19,28-33,37
+src/lib/ai/index.ts
+  s_23d2a56b4c9e25::t_cfe9a344cc24bf 32-38,48-51
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "8a558c1493f6a6b37b230f9ef35ca67d8bf686b6",
+  "prompts": {},
+  "sessions": {
+    "s_23d2a56b4c9e25": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f4b92-f94a-7320-ad72-cec24721fb59",
+        "model": "unknown"
+      },
+      "human_author": "liluzheng <liluzheng@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
