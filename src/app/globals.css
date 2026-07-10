@@ -68,6 +68,17 @@ body {
   animation: muse-page-enter var(--motion-normal) var(--ease-out-smooth) both;
 }
 
+.app-main {
+  transition-property: opacity, transform;
+  transition-duration: var(--motion-fast);
+  transition-timing-function: ease-in;
+}
+
+.route-progress[data-phase="loading"] + .app-shell .app-main {
+  opacity: 0.94;
+  transform: translateY(-4px);
+}
+
 .panel-transition {
   animation: muse-panel-enter 180ms var(--ease-out-smooth) both;
 }
@@ -199,8 +210,14 @@ body {
 
   .route-progress,
   .route-progress-bar,
+  .app-main,
   .interactive-motion {
     transition: none;
+  }
+
+  .route-progress[data-phase="loading"] + .app-shell .app-main {
+    opacity: 1;
+    transform: none;
   }
 
   .interactive-motion:active {

@@ -19,9 +19,9 @@ export default function RootLayout({
         <Suspense fallback={null}>
           <RouteProgress />
         </Suspense>
-        <div className="flex min-h-screen">
+        <div className="app-shell flex min-h-screen">
           <SideNav />
-          <main className="min-w-0 flex-1 px-8 py-6">{children}</main>
+          <main className="app-main min-w-0 flex-1 px-8 py-6">{children}</main>
         </div>
       </body>
     </html>
