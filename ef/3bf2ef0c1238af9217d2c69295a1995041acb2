@@ -1,0 +1,29 @@
+DESIGN.md
+  s_23d2a56b4c9e25::t_d4a6e12e4725f8 76
+feature_list.json
+  s_23d2a56b4c9e25::t_be411835352467 172
+progress.md
+  s_23d2a56b4c9e25::t_82eff2d7754e74 5,14
+src/app/globals.css
+  s_23d2a56b4c9e25::t_38ca82eb29a5b0 71-81,213,218-222
+src/app/layout.tsx
+  s_23d2a56b4c9e25::t_9e7f2ce637b094 22,24
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "ef3bf2ef0c1238af9217d2c69295a1995041acb2",
+  "prompts": {},
+  "sessions": {
+    "s_23d2a56b4c9e25": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f4b92-f94a-7320-ad72-cec24721fb59",
+        "model": "unknown"
+      },
+      "human_author": "liluzheng <liluzheng@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
