@@ -83,6 +83,33 @@ body {
   animation: muse-panel-enter 180ms var(--ease-out-smooth) both;
 }
 
+/* 窄屏抽屉导航 */
+@keyframes muse-drawer-enter {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes muse-backdrop-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.mobile-nav-drawer {
+  animation: muse-drawer-enter var(--motion-normal) var(--ease-out-smooth) both;
+}
+
+.mobile-nav-backdrop {
+  animation: muse-backdrop-enter var(--motion-fast) ease-out both;
+}
+
 .interactive-motion {
   touch-action: manipulation;
   transition-property: color, background-color, border-color, opacity, transform;
@@ -201,6 +228,8 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .page-transition,
   .panel-transition,
+  .mobile-nav-drawer,
+  .mobile-nav-backdrop,
   .ai-feedback,
   .ai-result-reveal,
   .ai-pending-icon,

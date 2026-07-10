@@ -63,7 +63,7 @@ export default async function PublishPage() {
         </form>
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {(
           [
             ["pending", "待发布 / 发布中"],

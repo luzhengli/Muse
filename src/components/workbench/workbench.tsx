@@ -100,7 +100,7 @@ export function Workbench({ data }: { data: WorkbenchData }) {
   }, [editor, latest]);
 
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)_22rem] gap-4">
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_20rem] xl:grid-cols-[minmax(0,1fr)_22rem]">
       <EditorCanvas
         editor={editor}
         data={data}
@@ -129,7 +129,7 @@ export function Workbench({ data }: { data: WorkbenchData }) {
             );
           })}
         </div>
-        <div className="max-h-[calc(100vh-14rem)] overflow-auto rounded-b-(--radius-card) border border-(--color-border) bg-(--color-surface) p-3">
+        <div className="overflow-auto rounded-b-(--radius-card) border border-(--color-border) bg-(--color-surface) p-3 lg:max-h-[calc(100vh-14rem)]">
           <div key={tab} className="panel-transition">
             {tab === "review" && <ReviewPanel editor={editor} data={data} />}
             {tab === "packaging" && <PackagingPanel editor={editor} data={data} />}

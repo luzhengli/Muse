@@ -168,8 +168,8 @@
       "dependencies": [
         "feat-016"
       ],
-      "status": "in-progress",
-      "evidence": "2026-07-11 真实渲染：1280px 页面切换在 8ms 显示 loading，53ms 新页仍处淡入；800ms 延迟 mock 下 AI 按钮在 60/360ms 均 aria-busy+disabled，shimmer/sparkle 动画矩阵持续变化；结果到达从 opacity 0、scale .98、translateY 4px 过渡至稳定态；mock 来源 warning 可见，浏览器 0 error/warning，测试数据已清理。375px 验证失败：scrollWidth 627px，固定侧栏导致主区竖排和横向滚动。运行时 CSSOM 已加载两组 reduced-motion 规则，但浏览器不支持切换系统媒体偏好，未采集实际降级帧。typecheck/lint/build/DESIGN lint 通过，feat 保持 in-progress。"
+      "status": "done",
+      "evidence": "2026-07-11 收口：新增窄屏顶栏+抽屉导航（<768px，路由变化/Esc 自动收起，body 滚动锁定），工作台 <1024px 纵向堆叠、≥1024px 双栏（20rem/22rem 面板），全站页面栅格与页头行加响应式断点，复盘宽表格改卡片内横滚。真实浏览器验证：375px 下 /、/materials、/topics、/articles、/publish、/retro、/articles/1（工作台）、variants/packaging/review、/materials/1、集合详情全部 scrollWidth=375 无溢出；抽屉打开-导航-自动收起闭环通过；768px 侧栏+纵向面板正常；1280px 双栏 625px+352px 保持既有层级；控制台 0 error。reduced-motion 用 Playwright emulateMedia 实测：matchMedia=true 时 page/panel/drawer/route-progress/interactive 全部 animation none、transition 0s，ai-action-pending::after display none；恢复 no-preference 后 muse-drawer-enter 0.22s、muse-page-enter 正常回归。typecheck/lint/build/DESIGN lint 全绿。"
     }
   ]
 }

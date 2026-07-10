@@ -58,7 +58,7 @@ export default async function CollectionDetailPage({
         <span>· 素材集合</span>
       </div>
 
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <div>
           <h1 className="text-xl font-bold">{collection.name}</h1>
           <p className="mt-1 text-sm text-(--color-muted)">
@@ -92,9 +92,9 @@ export default async function CollectionDetailPage({
       </div>
 
       {/* 集合内素材 */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {rows.length === 0 && (
-          <Card className="col-span-2">
+          <Card className="sm:col-span-2">
             <CardContent className="py-10 text-center text-sm text-(--color-muted)">
               集合还是空的。到素材库勾选素材后「+加入所选」。
             </CardContent>

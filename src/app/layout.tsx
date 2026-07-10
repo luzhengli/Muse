@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import "./globals.css";
-import { SideNav } from "@/components/nav";
+import { MobileNav, SideNav } from "@/components/nav";
 import { RouteProgress } from "@/components/route-progress";
 
 export const metadata: Metadata = {
@@ -19,9 +19,12 @@ export default function RootLayout({
         <Suspense fallback={null}>
           <RouteProgress />
         </Suspense>
-        <div className="app-shell flex min-h-screen">
+        <div className="app-shell flex min-h-screen flex-col md:flex-row">
+          <MobileNav />
           <SideNav />
-          <main className="app-main min-w-0 flex-1 px-8 py-6">{children}</main>
+          <main className="app-main min-w-0 flex-1 px-4 py-5 md:px-8 md:py-6">
+            {children}
+          </main>
         </div>
       </body>
     </html>

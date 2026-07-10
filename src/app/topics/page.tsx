@@ -169,7 +169,7 @@ export default async function TopicsPage({
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         {/* 从集合生成 */}
         <Card>
           <CardHeader>
@@ -269,7 +269,7 @@ export default async function TopicsPage({
             }))}
           />
         ) : (
-          <div className="grid grid-cols-2 gap-3">{rows.map(renderTopicCard)}</div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">{rows.map(renderTopicCard)}</div>
         )}
       </AiResultTransition>
     </div>

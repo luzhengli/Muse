@@ -66,7 +66,7 @@ export default async function PackagingPage({
       />
       <ArticleTabs articleId={articleId} />
 
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-(--color-muted)">
           基于最新版本生成标题候选、摘要、封面与配图提示词、图文卡片结构，并管理本地图片。
         </p>
@@ -79,7 +79,7 @@ export default async function PackagingPage({
 
       <AiResultTransition signature={latestPack?.id ?? "empty"}>
         {latestPack ? (
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <Card>
             <CardHeader>
               <CardTitle>标题候选</CardTitle>
@@ -152,12 +152,12 @@ export default async function PackagingPage({
           </Card>
 
           {latestPack.cardStructure && (
-            <Card className="col-span-2">
+            <Card className="md:col-span-2">
               <CardHeader>
                 <CardTitle>图文卡片结构</CardTitle>
                 <CardDescription>适用于小红书等图文平台的卡片拆分。</CardDescription>
               </CardHeader>
-              <CardContent className="grid grid-cols-4 gap-2">
+              <CardContent className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 {latestPack.cardStructure.cards.map((c, i) => (
                   <div
                     key={i}
@@ -191,7 +191,7 @@ export default async function PackagingPage({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          <form action={uploadAsset} className="flex gap-2">
+          <form action={uploadAsset} className="flex flex-wrap gap-2">
             <input type="hidden" name="articleId" value={articleId} />
             <Input type="file" name="file" required accept="image/*" className="flex-1 pt-1.5" />
             <Select name="kind" className="w-28">
@@ -201,7 +201,7 @@ export default async function PackagingPage({
             </Select>
             <Button>上传</Button>
           </form>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
             {assetRows.map((a) => (
               <div
                 key={a.id}

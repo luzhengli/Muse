@@ -79,15 +79,15 @@ export default async function ArticlesPage({
 
   return (
     <div className="mx-auto max-w-4xl space-y-4">
-      <div className="flex items-end justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-xl font-bold">写作台</h1>
           <p className="mt-1 text-sm text-(--color-muted)">
             文章母版在这里生产与迭代；从选题生成初稿，或从空白开始。
           </p>
         </div>
-        <form action={createBlankArticle} className="flex gap-2">
-          <Input name="title" placeholder="新文章标题" className="w-56" />
+        <form action={createBlankArticle} className="flex flex-wrap gap-2">
+          <Input name="title" placeholder="新文章标题" className="min-w-0 flex-1 sm:w-56 sm:flex-none" />
           <Button variant="outline">新建空白文章</Button>
         </form>
       </div>

@@ -13,7 +13,7 @@ export function ArticleTabs({ articleId }: { articleId: number }) {
     { href: `/articles/${articleId}/variants`, label: "📱 平台版本" },
   ];
   return (
-    <div className="flex gap-1 border-b border-(--color-border)">
+    <div className="flex gap-1 overflow-x-auto border-b border-(--color-border)">
       {tabs.map((t) => {
         const active = pathname === t.href;
         return (

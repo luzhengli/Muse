@@ -3,12 +3,35 @@
 ## Current State
 
 **Last Updated:** 2026-07-11
-**Session ID:** motion-transition-polish-01
-**Active Feature:** feat-017 进行中（全站动效与页面过渡）
+**Session ID:** muse-v0.2-01
+**Active Feature:** feat-017 已完成（响应式收口）；下一个：feat-018 沉浸式 Markdown 编辑器
 
 ## Status
 
-### Current Work（本轮 feat-017）
+### Current Work（本轮 feat-017 响应式收口）
+
+- [x] **窄屏导航**：`nav.tsx` 拆分为桌面 `SideNav`（hidden md:flex）与 `MobileNav`（md:hidden 置顶 56px 头部栏 + 汉堡按钮 + 左侧抽屉）；抽屉带遮罩、Esc/路由变化自动收起、body 滚动锁定、aria-expanded/aria-controls/role=dialog。
+- [x] **抽屉动效**：`muse-drawer-enter` 220ms 滑入 + `muse-backdrop-enter` 120ms 淡入，纳入 prefers-reduced-motion 降级组。
+- [x] **工作台响应式**：`workbench.tsx` 栅格改为 grid-cols-1 / lg:[1fr_20rem] / xl:[1fr_22rem]，面板 max-h 限制仅 lg+ 生效，窄屏为纵向区域。
+- [x] **页面栅格断点**：首页统计/双卡、素材库、集合详情、选题板、写作台列表、发布中心、复盘中心、审阅页、包装页、平台版本页的 grid-cols-2/3/4 全部加 sm:/md: 断点；窄屏单列或 2 列。
+- [x] **页头行与表单**：写作台新建表单、包装/变体/集合详情的「说明+操作」行窄屏改纵向堆叠；上传表单 flex-wrap；文章 tabs overflow-x-auto；复盘数据表格改卡片内横滚（min-w-96 + overflow-x-auto）。
+- [x] **布局规范落档**：DESIGN.md Layout 补 768/1024/1280 断点规则与抽屉导航规范，Motion 补抽屉动效。
+
+### Verification（feat-017 收口，2026-07-11）
+
+- [x] `./init.sh` 全绿（bun install / typecheck / lint 0 警告 / build / DESIGN.md lint 0 errors）。
+- [x] **375px 真实浏览器**：/、/materials、/materials/1、/materials/collections/1、/topics、/articles、/articles/1（工作台）、/articles/1/review、/articles/1/packaging、/articles/1/variants、/publish、/retro 全部 scrollWidth=375、无溢出元素；工作台工具栏换行可用、面板纵向堆叠；控制台 0 error/warning。
+- [x] **抽屉导航闭环**：打开（图标+高亮+遮罩正常）→ 点击「选题板」→ 路由跳转 /topics → 抽屉自动收起 → body overflow 恢复。
+- [x] **768px**：侧栏显示、移动顶栏隐藏、无横向溢出，工作台纵向堆叠可用。
+- [x] **1280px**：工作台双栏 625px+352px（22rem），桌面视觉层级与动效不变。
+- [x] **prefers-reduced-motion 实测**（Playwright emulateMedia reduce）：page-transition/panel-transition/app-main/route-progress/interactive-motion 全部 animationName=none、transition 0s；ai-action-pending::after display=none；抽屉打开但无动画。切回 no-preference 后 muse-drawer-enter 0.22s、muse-page-enter 恢复。
+- [x] 复盘数据表格在自身容器内横滚，页面不产生横向滚动。
+
+### Remaining Risk（feat-017）
+
+- 已知无阻塞小问题：favicon.ico 404（既有，未在本轮范围）；Browser pane 的合成点击对汉堡按钮偶发双触发 toggle（真实指针与 Playwright 点击均正常，判定为自动化工具行为差异，非产品缺陷）。
+
+### What's Done（上一轮 feat-017 动效部分）
 
 - [x] **动效方向写入设计系统**：`DESIGN.md` 新增 fast/normal/slow 时长与统一 ease-out 曲线；动效只使用 opacity/transform，保持 Muse「安静的工作室」而不是高调动画站。
 - [x] **页面切换连续性**：根布局增加全站顶部细进度线；导航开始时旧工作区用 120ms、4px 轻微上移淡出，App Router `template.tsx` 在新页面挂载时执行 220ms 上移淡入接棒；普通链接、前进/后退、AI 成功跳转和列表筛选的程序化导航统一即时启动进度反馈，12 秒安全收尾防止异常导航留下常驻进度条。
@@ -19,7 +42,7 @@
 - [x] **可重复真实渲染 QA**：新增默认关闭的 `MUSE_AI_MOCK_DELAY_MS`，配合 `MUSE_AI_PROVIDER=mock` 可稳定观察长耗时 pending，不发送用户内容到外部模型；本轮以 800ms 延迟完成采样。
 - [x] **可访问性与性能**：AI 按钮维持 `aria-busy` / 动态 accessible name；`prefers-reduced-motion` 关闭页面、面板、反馈、流光和循环图标动画；未引入动画依赖。
 
-### Verification（feat-017）
+### Verification（上一轮 feat-017 动效部分）
 
 - [x] `bun run typecheck`
 - [x] `bun run lint`（0 warnings / errors）
@@ -32,9 +55,9 @@
 - [x] **375px 验证已执行但失败**：视口 375px 时页面 `scrollWidth=627px`，固定 208px 侧栏导致主区逐字竖排与横向滚动；这是 app shell 响应式缺陷，不是动效导致。
 - [x] **reduced-motion 运行时规则检查**：真实页面 CSSOM 中加载 2 组 `prefers-reduced-motion: reduce` 规则，覆盖自定义动效和 Tailwind `motion-reduce` 工具；当前浏览器系统偏好为 false，控制接口不支持切换媒体偏好，未取得实际降级帧。
 
-### Remaining Risk（feat-017）
+### Remaining Risk（上一轮 feat-017，已在本轮解决）
 
-- 桌面页面切换、AI pending、结果到达和无报错运行已通过真实渲染；375px app shell 明确失败，需在获得移动端响应式改造授权后修复。reduced-motion 规则已在运行时加载，但实际系统偏好帧仍缺少可切换环境。feat-017 保持 `in-progress`。
+- ~~375px app shell 失败~~ → 本轮已修复并逐页验证；~~reduced-motion 缺实际降级帧~~ → 本轮用 Playwright emulateMedia 实测降级与恢复。feat-017 已置 `done`。
 
 ### What's Done（本轮 feat-016）
 

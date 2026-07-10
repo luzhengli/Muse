@@ -130,7 +130,7 @@ export default async function RetroPage({
         platformOptions={PLATFORM_IDS.map((p) => ({ value: p, label: platformName(p) }))}
       />
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {/* 录入发布数据 */}
         <Card>
           <CardHeader>
@@ -165,7 +165,7 @@ export default async function RetroPage({
                 </Select>
               </div>
               <Input name="externalUrl" placeholder="发布链接（可选）" />
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 <div>
                   <Label>阅读/浏览</Label>
                   <Input type="number" name="views" min={0} defaultValue={0} />
@@ -231,8 +231,8 @@ export default async function RetroPage({
           <CardHeader>
             <CardTitle>发布数据记录（{results.length}）</CardTitle>
           </CardHeader>
-          <CardContent>
-            <table className="w-full text-sm">
+          <CardContent className="overflow-x-auto">
+            <table className="w-full min-w-96 text-sm">
               <thead>
                 <tr className="border-b border-(--color-border) text-left text-xs text-(--color-muted)">
                   <th className="py-2">平台</th>

@@ -82,7 +82,7 @@ export default async function Home() {
         <span className="text-(--color-muted)">↺</span>
       </div>
 
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {stats.map((s) => (
           <Link key={s.label} href={s.href}>
             <Card className="transition-colors hover:border-(--color-primary)">
@@ -95,7 +95,7 @@ export default async function Home() {
         ))}
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {/* 快速灵感捕捉 */}
         <Card>
           <CardHeader>

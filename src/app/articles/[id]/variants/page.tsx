@@ -46,11 +46,11 @@ export default async function VariantsPage({
       />
       <ArticleTabs articleId={articleId} />
 
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <p className="text-sm text-(--color-muted)">
           从同一内容母版派生平台版本：标题长度、段落结构、话题标签、CTA、摘要与发布说明分别适配。
         </p>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {PLATFORM_IDS.map((p) => (
             <AiActionButton
               key={p}
@@ -81,7 +81,7 @@ export default async function VariantsPage({
           return (
             <Card key={v.id}>
               <CardHeader>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <CardTitle>{spec.name} 版本</CardTitle>
                   <Badge tone="primary">#{v.id}</Badge>
                   <span className="text-xs text-(--color-muted)">
@@ -109,7 +109,7 @@ export default async function VariantsPage({
                 <form action={updateVariant} className="space-y-2">
                   <input type="hidden" name="id" value={v.id} />
                   <input type="hidden" name="articleId" value={articleId} />
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                     <div>
                       <Label>标题{spec.titleMaxLen ? `（≤${spec.titleMaxLen} 字）` : ""}</Label>
                       <Input name="title" defaultValue={v.title} />
@@ -123,7 +123,7 @@ export default async function VariantsPage({
                     <Label>正文</Label>
                     <Textarea name="content" defaultValue={v.content} className="min-h-40 font-mono text-xs" />
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                     <div>
                       <Label>CTA</Label>
                       <Input name="cta" defaultValue={v.cta} />
