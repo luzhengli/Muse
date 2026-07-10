@@ -1,0 +1,75 @@
+.env.example
+  s_23d2a56b4c9e25::t_7330761600f2d1 5,15-17
+bun.lock
+  s_23d2a56b4c9e25::t_3357cca05d06b0 45-47
+package.json
+  s_23d2a56b4c9e25::t_fd5a0f4da01018 53-55
+src/actions/articles.ts
+  s_23d2a56b4c9e25::t_6141d9a064ad81 13-14,97-108
+src/actions/assets.ts
+  s_23d2a56b4c9e25::t_18bd0c41868da7 4,17
+src/actions/materials.ts
+  s_23d2a56b4c9e25::t_1cde3048b6869d 5,17-18,107,127-133,135-158
+src/actions/packaging.ts
+  s_23d2a56b4c9e25::t_e3bbfbb9018ede 5,16-17,20-48,88,106-113
+src/actions/retro.ts
+  s_23d2a56b4c9e25::t_3d047640c1a553 14-15,62-89
+src/actions/review.ts
+  s_23d2a56b4c9e25::t_580e0927f45967 14-25,28-79,125-139,141-160
+src/actions/topics.ts
+  s_23d2a56b4c9e25::t_453b574a6540a2 17-22,46-48,50-51,53-86,108-122,126-129,131-182,184
+src/actions/variants.ts
+  s_23d2a56b4c9e25::t_0a4dfcd2c46102 13-14,18-50
+src/app/api/assets/[name]/route.ts
+  s_23d2a56b4c9e25::t_871ab8c1dba76e 1,25-32,36
+src/app/articles/[id]/packaging/page.tsx
+  s_23d2a56b4c9e25::t_ca905bf63ddd54 17,73-77
+src/app/articles/[id]/review/page.tsx
+  s_23d2a56b4c9e25::t_4bd72eacc8d2e4 4,14,69-74,76,85
+src/app/articles/[id]/variants/page.tsx
+  s_23d2a56b4c9e25::t_f623b554cb0a96 14,55,57-62
+src/app/materials/[id]/page.tsx
+  s_23d2a56b4c9e25::t_af62c95a1f0119 9,72-77
+src/app/materials/collections/[id]/page.tsx
+  s_23d2a56b4c9e25::t_aa59f4279eb20e 7,84-89,91
+src/app/materials/toolbar.tsx
+  s_23d2a56b4c9e25::t_5c5c50db774549 11,68-75,77
+src/app/retro/page.tsx
+  s_23d2a56b4c9e25::t_9d8262080b7b1b 19,87-93
+src/app/topics/page.tsx
+  s_23d2a56b4c9e25::t_b88fbaf4401b67 17,129-141,176-181,190
+src/components/ai-action.tsx
+  s_23d2a56b4c9e25::t_7fe37cce7a5292 1-154
+src/components/editor/tiptap-editor.tsx
+  s_23d2a56b4c9e25::t_7a6552a9976ecf 3,10-11,22-24,60,63-66,69-85,95,126,129,132,134
+src/components/workbench/editor-canvas.tsx
+  s_23d2a56b4c9e25::t_914fda892df16d 11-12,38-40,71,74-77,80-91,101,119,171,179,187,198
+src/components/workbench/packaging-panel.tsx
+  s_23d2a56b4c9e25::t_8bd7068b85bcae 3,18-19,34-37,42,51-55,65-85,98-99,101,105,124-125,146,148,150-154,219,269,282
+src/components/workbench/review-panel.tsx
+  s_23d2a56b4c9e25::t_e6bf363ee6bcd7 3,19-20,40-42,44,48-51,53-79,91-95,110-114,143,192,246
+src/lib/ai/index.ts
+  s_23d2a56b4c9e25::t_537f689c1b28d5 1,5,9,23-125,138-141,144,156-158,165-168,171,187-189,202-205,208,221-223,231-234,237,253-255,259,266-268,271,275-277,285-288,291,300-302,309,313-315,318,334-336,340-343,346,358-360,368,370-373,376,379-382,386,389-391,395-398,401,413-415
+src/lib/ai/provider.ts
+  s_23d2a56b4c9e25::t_a8b1839e0d8c87 11-16,22,27-28,31-32,35,41,43-57
+src/lib/ai/types.ts
+  s_23d2a56b4c9e25::t_bab69a7fb6f0d5 3-37
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "8c6fcef3bb74b51367ae89ef9d261ec8b6aa2777",
+  "prompts": {},
+  "sessions": {
+    "s_23d2a56b4c9e25": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f4b92-f94a-7320-ad72-cec24721fb59",
+        "model": "unknown"
+      },
+      "human_author": "liluzheng <liluzheng@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
