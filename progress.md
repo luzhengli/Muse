@@ -4,9 +4,45 @@
 
 **Last Updated:** 2026-07-11
 **Session ID:** muse-v0.2-01
-**Active Feature:** feat-017 已完成（响应式收口）；下一个：feat-018 沉浸式 Markdown 编辑器
+**Active Feature:** feat-018 已完成（沉浸式 Markdown 编辑器）；下一个：feat-019 设置中心
 
 ## Status
+
+### Current Work（本轮 feat-018 沉浸式 Markdown 编辑器）
+
+- [x] **Markdown 转换层**：新增 `src/lib/markdown/`（serialize：Tiptap JSON→MD 显式节点表、未知节点降级为文本并 onUnknown 上报；parse：markdown-it default 预设 + 自研 $..$/$$..$$ 数学规则 + 任务列表识别；detect：保守的粘贴 Markdown 识别）。旧正则 `htmlToMarkdown` 删除，`html-md.ts` 仅保留 HTML 导出包装。
+- [x] **编辑器扩展**：`src/components/editor/extensions.ts` 统一 StarterKit（关 codeBlock）+ CodeBlockLowlight（common 语言集，React NodeView 语言下拉）+ Link + Table 全家 + TaskList/TaskItem + 自研 InlineMath/BlockMath（KaTeX 原子节点，插入即 NodeSelection）+ CharacterCount + Placeholder。
+- [x] **Bubble Menu**：选区浮出 B/I/S/行内代码/链接（⌘K）/H2/H3 + AI 扩写/改写/重组；公式节点选中时切换为 LaTeX 输入框（更新/删除）；修复事务后输入框抢焦点缺陷（仅首次选中空公式聚焦）。
+- [x] **/ 插入菜单**：@tiptap/suggestion + SlashMenuBus 桥接 React 浮层，13 项（标题/列表/任务/引用/代码块/两种公式/表格/图片/分隔线），↑↓ Enter Esc 键盘导航、中文+拼音关键词过滤；`allowedPrefixes: null` 修复中文句号后无法触发。
+- [x] **AI 选区安全**：`track-range.ts` 用 ProseMirror mapping 跟踪原始选区；EditorCanvas 内固定位置的 pending/预览卡（原文摘录+结果+接受/取消）；选区被删则禁用接受并警示，取消与失败均不改正文。
+- [x] **自动保存**：新表 `article_drafts`（每文一行）与 `lib/drafts.ts` 核心逻辑（内容去重、版本基线同步、恢复规则），Server Action `saveDraft` 不 revalidate；`use-autosave.ts` 状态机 idle/dirty/saving/saved/error（8s 重试、composition 中不落库、visibilitychange 抢救、beforeunload 提示）；页面加载 `resolveInitialContent` 决定恢复工作稿并显示提示条。
+- [x] **工具栏与状态栏**：撤销/重做、H1-H3、B/I/S/行内代码、三类列表、引用、代码块、插图、图文预览/Markdown 预览/导入 .md/导出 .md/.html、专注模式；底部字符/词数 + 保存状态 + 快捷键提示。
+- [x] **专注模式**：隐藏文章页头、tabs 与右侧面板，画布居中 max-w-3xl；CSS `:has(.workbench-focus)` 控制 article-chrome。
+- [x] **测试**：`bun test` 49/49（tests/markdown.test.ts 39 项 + tests/drafts.test.ts 10 项，后者用 bun:sqlite 内存库 + 共享 BOOTSTRAP_SQL，lib/drafts 改为显式传 db 依赖注入以绕开 better-sqlite3 Node/Bun ABI 冲突）。
+- [x] **文档**：DESIGN.md 增补编辑器/Bubble/代码块/公式/表格/保存状态/专注模式/移动端规范；README 更新写作台能力。
+
+### Verification（feat-018，2026-07-11）
+
+- [x] `bun test tests` 49 pass / 0 fail。
+- [x] `./init.sh` 全绿（typecheck / lint 0 警告 / build / DESIGN lint 0 errors）。
+- [x] 浏览器冒烟（Chrome dev server，文章 1）：/ 菜单键盘全流程、代码块语言+高亮+多行、行内与块级公式 KaTeX、表格+Tab、任务列表勾选、Bubble 格式/链接、AI 接受（预览期间前置编辑后 mapping 替换正确段落）/取消/选区删除保护、粘贴 Markdown 结构化、IME composition 序列、Markdown 预览往返、导出反馈、自动保存与失败重试提示、刷新恢复+保存 v9 后基线干净、恢复 v7→v10 同步、专注模式、375px 无溢出、控制台 0 error、AI 审阅旧闭环不回归。
+- [x] 服务器 build 与 dev 冲突教训：`./init.sh`（含 next build）与运行中 dev server 共写 `.next` 会损坏 webpack runtime（vendor-chunks 丢失、server action 500）→ 验证期间先停 dev server 再跑 init.sh，或跑完清 `.next` 重启。
+
+### Remaining Risk（feat-018）
+
+- 真实中文 IME 组字仅以 composition 事件序列模拟（浏览器自动化无法驱动系统输入法）；PM 原生 composition 处理 + autosave composing 保护已覆盖，建议真机手动补一次。
+- .md 文件导入的文件选择框未在自动化中触发（与粘贴导入共用 markdownToDoc 路径，已由粘贴路径与单测覆盖）。
+- 偶发一次 slash 菜单首个 Enter 未消费（HMR 重载间隙 keyHandler 注册竞态，刷新后未复现；生产 build 无 HMR）。
+
+### Architecture Decisions（feat-018，实现前记录）
+
+- **文档模型**：Tiptap（ProseMirror）JSON/HTML 保持唯一结构化文档源；数据库继续存 contentHtml（版本兼容），Markdown 只作为导入 / 预览 / 导出边界，不引入双源状态。
+- **Markdown 转换**：弃用正则 HTML→MD。新增 `src/lib/markdown/`：serialize（Tiptap JSON→MD，显式节点处理表 + 未知节点降级输出其文本内容并 console 警告，绝不静默丢内容）+ parse（markdown-it CommonMark+GFM → Tiptap JSON）。两个方向均为纯函数，bun:test 可测。
+- **公式**：渲染用 KaTeX（成熟开源）；Tiptap 侧用自研极薄 inlineMath / blockMath atom 节点（attrs.latex），避免第三方扩展与 Tiptap 2.14 的兼容风险；MD 边界表达为 `$...$` / `$$...$$`。
+- **代码块**：官方 @tiptap/extension-code-block-lowlight + lowlight（common 语言集），语言下拉写入 attrs.language，MD 边界为带语言标识的 fenced block。
+- **表格/任务列表/链接**：官方 @tiptap/extension-table*、task-list/task-item、link，全部 ^2.14。
+- **自动保存数据模型**：新增 `article_drafts` 表（article_id 唯一、content_html、content_text、base_version_id、updated_at）。debounce 自动保存只写 draft（内容哈希去重，不产生版本）；「保存为新版本」才写 articleVersions 并同步 draft 基线。加载时 draft 比最新版本新则恢复 draft。状态机 dirty→saving→saved / error（可重试）。
+- **AI 选区安全**：发起 AI 时记录 {from,to} 并订阅 editor transaction，用 ProseMirror mapping 随每次编辑重映射；结果以预览卡呈现，接受时替换映射后的选区，映射失效（被删除）则提示失败且不动正文。
 
 ### Current Work（本轮 feat-017 响应式收口）
 

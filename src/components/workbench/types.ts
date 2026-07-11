@@ -64,4 +64,8 @@ export interface WorkbenchData {
   packaging: WbPackaging | null;
   assets: WbAsset[];
   brief: TopicBrief | null;
+  /** 编辑器初始内容（最新版本或恢复的工作稿） */
+  initialContentHtml: string;
+  /** 本次加载是否从自动保存的工作稿恢复 */
+  restoredFromDraft: boolean;
 }

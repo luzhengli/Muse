@@ -127,6 +127,21 @@ export const articleVersions = sqliteTable("article_versions", {
   createdAt: integer("created_at").notNull().default(now()),
 });
 
+/**
+ * 当前工作稿（自动保存）：与不可变的 articleVersions 分离，
+ * debounce 自动保存只更新这一行，不污染版本历史。
+ */
+export const articleDrafts = sqliteTable("article_drafts", {
+  articleId: integer("article_id")
+    .primaryKey()
+    .references(() => articles.id, { onDelete: "cascade" }),
+  contentHtml: text("content_html").notNull(),
+  contentText: text("content_text").notNull().default(""),
+  /** 该草稿基于哪个版本检查点（保存新版本后同步） */
+  baseVersionId: integer("base_version_id"),
+  updatedAt: integer("updated_at").notNull().default(now()),
+});
+
 /** 引用关系：文章引用了哪些素材 */
 export const articleCitations = sqliteTable("article_citations", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -305,6 +320,7 @@ export type Collection = typeof collections.$inferSelect;
 export type Topic = typeof topics.$inferSelect;
 export type Article = typeof articles.$inferSelect;
 export type ArticleVersion = typeof articleVersions.$inferSelect;
+export type ArticleDraft = typeof articleDrafts.$inferSelect;
 export type ArticleCitation = typeof articleCitations.$inferSelect;
 export type Review = typeof reviews.$inferSelect;
 export type ReviewFinding = typeof reviewFindings.$inferSelect;

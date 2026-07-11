@@ -12,7 +12,8 @@ import {
 import { aiRewrite, type RewriteMode } from "@/lib/ai";
 import type { AiActionResult } from "@/lib/ai";
 import { completedAiAction, runExclusiveAiAction } from "@/lib/ai/action";
-import { htmlToText, nowUnix } from "@/lib/utils";
+import { saveDraftCore, saveVersionCore } from "@/lib/drafts";
+import { nowUnix } from "@/lib/utils";
 
 export async function createBlankArticle(formData: FormData) {
   const title = String(formData.get("title") ?? "").trim() || "未命名文章";
@@ -31,30 +32,23 @@ export async function createBlankArticle(formData: FormData) {
   redirect(`/articles/${article.id}`);
 }
 
-/** 保存新版本 */
+/** 保存新版本（不可变检查点，同时同步工作稿基线） */
 export async function saveVersion(
   articleId: number,
   contentHtml: string,
   note: string,
 ) {
-  const latest = await db.query.articleVersions.findFirst({
-    where: eq(articleVersions.articleId, articleId),
-    orderBy: desc(articleVersions.versionNo),
-  });
-  const versionNo = (latest?.versionNo ?? 0) + 1;
-  await db.insert(articleVersions).values({
-    articleId,
-    versionNo,
-    contentHtml,
-    contentText: htmlToText(contentHtml),
-    note: note || `手动保存 v${versionNo}`,
-  });
-  await db
-    .update(articles)
-    .set({ updatedAt: nowUnix() })
-    .where(eq(articles.id, articleId));
+  const { versionNo } = await saveVersionCore(db, articleId, contentHtml, note);
   revalidatePath(`/articles/${articleId}`);
   return { versionNo };
+}
+
+/**
+ * 自动保存当前工作稿。不产生版本、不 revalidate（避免打断编辑），
+ * 内容未变化时直接跳过写库。
+ */
+export async function saveDraft(articleId: number, contentHtml: string) {
+  return saveDraftCore(db, articleId, contentHtml);
 }
 
 /** 从历史版本恢复：把该版本内容另存为新版本，不破坏历史 */

@@ -16,6 +16,7 @@ import { ArticleHeader } from "@/components/article-header";
 import { ArticleTabs } from "@/components/article-tabs";
 import { Workbench } from "@/components/workbench/workbench";
 import type { WorkbenchData } from "@/components/workbench/types";
+import { getDraft, resolveInitialContent } from "@/lib/drafts";
 
 export const dynamic = "force-dynamic";
 
@@ -80,6 +81,9 @@ export default async function ArticleEditorPage({
     ? await db.query.topics.findFirst({ where: eq(topics.id, article.topicId) })
     : null;
 
+  const draft = await getDraft(db, articleId);
+  const initial = resolveInitialContent(versions[0] ?? null, draft);
+
   const data: WorkbenchData = {
     articleId,
     title: article.title,
@@ -130,17 +134,21 @@ export default async function ArticleEditorPage({
       createdAt: a.createdAt,
     })),
     brief: topic?.brief ?? null,
+    initialContentHtml: initial.contentHtml,
+    restoredFromDraft: initial.restoredFromDraft,
   };
 
   return (
     <div className="mx-auto max-w-6xl space-y-4">
-      <ArticleHeader
-        articleId={articleId}
-        title={article.title}
-        status={article.status}
-        topicTitle={topic?.title}
-      />
-      <ArticleTabs articleId={articleId} />
+      <div className="article-chrome space-y-4">
+        <ArticleHeader
+          articleId={articleId}
+          title={article.title}
+          status={article.status}
+          topicTitle={topic?.title}
+        />
+        <ArticleTabs articleId={articleId} />
+      </div>
       <Workbench data={data} />
     </div>
   );

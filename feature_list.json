@@ -170,6 +170,17 @@
       ],
       "status": "done",
       "evidence": "2026-07-11 收口：新增窄屏顶栏+抽屉导航（<768px，路由变化/Esc 自动收起，body 滚动锁定），工作台 <1024px 纵向堆叠、≥1024px 双栏（20rem/22rem 面板），全站页面栅格与页头行加响应式断点，复盘宽表格改卡片内横滚。真实浏览器验证：375px 下 /、/materials、/topics、/articles、/publish、/retro、/articles/1（工作台）、variants/packaging/review、/materials/1、集合详情全部 scrollWidth=375 无溢出；抽屉打开-导航-自动收起闭环通过；768px 侧栏+纵向面板正常；1280px 双栏 625px+352px 保持既有层级；控制台 0 error。reduced-motion 用 Playwright emulateMedia 实测：matchMedia=true 时 page/panel/drawer/route-progress/interactive 全部 animation none、transition 0s，ai-action-pending::after display none；恢复 no-preference 后 muse-drawer-enter 0.22s、muse-page-enter 正常回归。typecheck/lint/build/DESIGN lint 全绿。"
+    },
+    {
+      "id": "feat-018",
+      "name": "Immersive Markdown Editor",
+      "description": "沉浸式 Markdown 写作：Tiptap 唯一文档模型 + 可测试的 Markdown 双向转换边界（标题/格式/链接/引用/三类列表/分隔线/图片/带语言代码块/表格/行内与块级公式）；lowlight 代码高亮与语言选择；KaTeX 公式；选区 Bubble Menu（格式/链接/公式编辑/AI 扩写改写重组，选区经 mapping 保护）；/ 插入菜单；撤销重做/字数/保存状态/专注模式；工作稿与版本检查点分离的可靠自动保存与刷新恢复。",
+      "dependencies": [
+        "feat-009",
+        "feat-017"
+      ],
+      "status": "done",
+      "evidence": "2026-07-11：bun test 49/49 通过（markdown 往返 39 项：H1-H6/marks/代码语言/围栏转义/列表/任务列表/嵌套/引用/hr/图片提升/表格管道转义/行内与块级公式/美元边界/未知节点降级上报/全文收敛；drafts 10 项：自动保存去重、覆写不增行、不产生版本、版本递增+基线同步、恢复规则 5 例）。真实浏览器（dev server）：/ 菜单 13 项、中文句号后触发（allowedPrefixes 修复）、dai/gongshi/biaoge 过滤+↑↓ Enter Esc；代码块语言下拉 27 种+hljs 高亮+多行输入；块级/行内公式 KaTeX 渲染、点击选中、Bubble LaTeX 编辑（修复事务后抢焦点缺陷）；表格插入+Tab 导航；任务列表勾选；Bubble 加粗/链接（⌘K 输入框）应用与移除；AI 改写 pending→预览→接受（预览期间前置插入 8 字符后 mapping 仍替换正确段落）、取消不改正文、整段删除后接受禁用+警示；粘贴 Markdown 结构化导入（H2/列表/加粗）；IME composition 序列后内容正确且自动保存；Markdown 预览含 ```typescript、$$..$$、GFM 表格、![]() 资产链接；导出 .md/.html 反馈；自动保存 dirty→已自动保存、无效 server 时显示失败+重试；刷新恢复工作稿提示条、保存 v9 后刷新基线干净；恢复 v7→v10 编辑器同步；专注模式隐藏页头/tabs/面板并居中画布；375px 编辑器无溢出；控制台 0 error；工作台 AI 审阅执行不回归。typecheck/lint/build/DESIGN lint 全绿。已知限制：真实 IME 组字与 .md 文件选择框无法在自动化环境完全模拟（分别以 composition 事件序列与共用解析路径的粘贴导入覆盖）。"
     }
   ]
 }
