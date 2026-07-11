@@ -28,6 +28,7 @@ export function saveAppSettings(patch: Partial<AppSettings>): AppSettings {
     editor: { ...current.editor, ...(patch.editor ?? {}) },
     ai: { ...current.ai, ...(patch.ai ?? {}) },
     appearance: { ...current.appearance, ...(patch.appearance ?? {}) },
+    onboarding: { ...current.onboarding, ...(patch.onboarding ?? {}) },
   });
   const value = JSON.stringify(merged);
   const existing = db

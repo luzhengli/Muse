@@ -197,7 +197,10 @@
       "id": "feat-020",
       "name": "Active Revision Contract",
       "description": "统一当前工作稿到不可变检查点再到审阅、包装与平台适配的编排；内容相同时复用检查点；所有下游产物记录精确 sourceVersionId，工作台显示版本与过期状态，并修复旧版本审阅润色。",
-      "dependencies": ["feat-018", "feat-019"],
+      "dependencies": [
+        "feat-018",
+        "feat-019"
+      ],
       "status": "done",
       "evidence": "2026-07-11：新增 revisions 契约与 6 项测试（当前内容选择、自动检查点、相同 HTML 去重、编辑器实时内容优先、过期判断、旧库补列且旧平台稿来源保持 null）；reviews/packagings 以原 version_id 映射 sourceVersionId，platform_variants 兼容新增 source_version_id；审阅润色只允许其来源版本仍为当前检查点。浏览器文章 8：未手动保存直接审阅创建 v2 且 review.version_id=20；重复审阅版本数仍为 2、两条审阅均指向 20；包装复用 v2；正文再次变化后工作台即时显示检查点缺失、审阅/包装待更新且旧意见 AI 润色禁用；跳转平台适配后从自动保存稿创建 v3，X 稿 source_version_id=21 且 UI 显示来源 v3。控制台 0 error/0 warning。"
     },
@@ -205,7 +208,9 @@
       "id": "feat-021",
       "name": "Editable Creative Brief",
       "description": "创作 Brief 可编辑持久化，覆盖读者、目标、主张、要点、角度、语气、平台、大纲和要点证据；旧 JSON 自动补默认；Brief 变化提示正文重新对齐，并提供先预览后确认的初稿或大纲改写入口。",
-      "dependencies": ["feat-020"],
+      "dependencies": [
+        "feat-020"
+      ],
       "status": "done",
       "evidence": "2026-07-11：TopicBrief JSON 增量补 objective/coreClaim/evidence，normalizeTopicBrief 兼容旧 JSON 与直接传入的 Topic 字段；6 项单测覆盖旧数据默认、两类选题 fallback、要点证据保留、必填完整性和 Brief 指纹。选题卡与写作台素材面板共用 BriefEditor；AI Brief 与初稿均先预览，初稿预览绑定 Brief 指纹，Brief 变化后服务端拒绝旧预览。真实浏览器完成选题创建、完整 Brief 编辑/持久化、初稿预览与确认：创建文章 10/v1；工作台回显全部字段并显示正文重新对齐提示，修改 Brief 后文章版本数仍为 1、正文长度仍为 1105。375/768/1280px 均无横向溢出；控制台无应用错误（仅浏览器请求缺失 favicon.ico 的既有 404）。验收数据已清理。bun test tests 73/73、typecheck、lint、build、DESIGN lint 全绿。"
     },
@@ -213,7 +218,9 @@
       "id": "feat-022",
       "name": "Evidence and Citation Loop",
       "description": "把文章关联素材升级为可定位语料块的证据引用，支持搜索、复制、插入、持久化与 Markdown 往返；AI 事实审阅区分来源支持、缺失和冲突，并为素材或引用删除提供可理解降级。",
-      "dependencies": ["feat-021"],
+      "dependencies": [
+        "feat-021"
+      ],
       "status": "done",
       "evidence": "2026-07-11：新表 evidence_citations（key 引用身份 + 摘录 + 上下文快照 + material/chunk 外键 SET NULL），有效状态读取时纯函数计算；重清洗按摘录重定位、未命中降级；review_findings 兼容补 evidence_state。Tiptap citation mark（span[data-citation]）+ Markdown 边界 [text](muse://cite/KEY) 往返。写作台资料面板：FTS 搜索→预览→插入摘录并引用/为选中文字关联→点击正文引用文字自动打开面板高亮「这句话有什么依据」。AI 事实检查（aiFactCheck）区分资料支持/缺少资料/资料冲突/来源不可用，缺少资料 severity=info 且不表述为错误。bun test 88/88（新增 citations 15：有效性纯函数、重定位与降级、素材删除快照保留、MD 往返、link/citation 共存优先、mock 确定性、旧库补列）。真实浏览器（文章 12/素材 8，验后清理）：搜索命中真实清洗语料块、插入+关联两种引用、点击引用文字面板高亮详情、真实 DeepSeek 事实检查（72% 论断=supported、300% 论断=missing 文案「无法核实」、素材删除后=unavailable）、重清洗后「来源已变化」+原始快照、删除后「来源已删除」、移除引用清除 mark 保留文字、刷新后 mark 持久、Markdown 预览含 muse://cite、375/768/1280 无横向溢出、控制台 0 error。typecheck/lint/build/DESIGN lint 全绿。"
     },
@@ -221,9 +228,41 @@
       "id": "feat-023",
       "name": "Readiness Gate and Stale Derivatives",
       "description": "在统一写作台按检查点、Brief、审阅 critical、包装、平台稿和要点证据六类事实计算成稿就绪；展示缺口与直达操作，禁止手动状态绕过，并保留且标记全部旧产物。",
-      "dependencies": ["feat-022"],
+      "dependencies": [
+        "feat-022"
+      ],
       "status": "done",
       "evidence": "2026-07-11：src/lib/readiness.ts 唯一领域状态计算（getReadinessFactsCore 汇集正文/检查点/Brief 完整与对齐/要点证据/引用有效性/当前 critical/包装/平台稿八类事实；computeReadiness 纯函数输出有序缺口+唯一 NextAction；assertPublishable 服务端发布校验），不读 articles.status。新增 articles.aligned_brief_fingerprint（幂等补列，NULL 不产生缺口），对齐事实三处写入（初稿确认/Brief 编辑前回填/显式确认按钮）。发布双重拦截：createPublishTask 拒绝+redirect 回显原因，executeTask 执行前再校验、旧稿任务置 failed。写作台 ReadinessStrip：状态 Badge+唯一主行动+阻塞原因/可跳过风险+全部待办分级列表+直达按钮；删除手动 updateArticleStatus，写作台头部撤下 status 徽章。bun test 103/103（readiness 15：纯函数组合/优先级/发布校验四类拒绝/事实汇集/对齐指纹三态/工作稿领先）。真实浏览器（文章 13/选题 19，验后清理）：空文→「从写下第一段开始」；输入即时变为「还差 1 步」；人工 critical→「处理严重问题」阻断、已处理即恢复；主行动直达平台版本页；新稿任务创建成功横幅；改正文后未固化拦截、保存 v3 后旧稿拦截（横幅+任务 failed 均写明原因）、重新派生后恢复可发布；Brief 修改→「查看创作说明并确认」→确认对齐即清除；刷新/服务器中断后正文与状态恢复；375px 首屏可见状态与唯一下一步、无横向溢出；控制台 0 error。typecheck/lint/build/DESIGN lint 全绿。"
+    },
+    {
+      "id": "feat-024",
+      "name": "Onboarding, Home and Creation Wizard",
+      "description": "首次引导（≤3 步可跳过、答案作默认值、示例只读不落库）；首页收敛为「继续上次创作 + 开始一次新创作 + ≤3 个待处理及 NextAction」；/create 创建向导提供想法/资料/历史经验三入口，AI 多选题先预览-推荐-查重、确认才落库；创作说明降为可跳过的普通问题并带默认值。",
+      "dependencies": [
+        "feat-023"
+      ],
+      "status": "done",
+      "evidence": "2026-07-11：app_settings 增 onboarding 区块（zod .catch 兼容旧 JSON）；src/lib/create.ts（想法标题归一、去标点虚词的 bigram 查重 findSimilarTopics、defaultBriefAnswers/briefFromAnswers、confirmCreationCore 唯一写库入口=1 选题+1 文章 v1 空白稿+对齐指纹）；src/actions/create.ts（saveOnboarding、previewIdeaTopics/previewRetroTopic 纯预览不落库、confirmCreation 溯源 retroId）。首页重构：首屏仅「继续上次创作（readiness 状态+下一步）+ 开始一次新创作」+ ≤3 进行中创作；OnboardingCard 3 步单选可跳过+只读示例。/create 向导三入口（想法/资料/经验），AI 候选卡（推荐+查重提示+『返回不创建任何数据』），创作说明 6 问全带默认值可跳过或一键默认。bun test 112/112（create 9：onboarding 兼容、归一/相似度/查重、默认答案与证据标记、恰好创建、空标题拒绝且零写入）。真实浏览器（topic 20/article 14，验后清理并重置 onboarding）：引导 3 步→答案持久化→跳转 /create；真实 AI 生成 3 方向候选（预览期间 topics/articles 计数不变）；选方向→6 问预填→勾选 1 个要点需证据→确认恰好创建并跳转工作台（brief evidence 标记正确、NextAction 显示『1 个重点观点还没有依据』）；相同想法重试三轮验证查重阈值（真重复 0.43/0.39 命中、差异化角度 0.28-0.33 不误报）；经验入口生成方向预览不落库；375px 首页无溢出且继续卡首屏可见；控制台 0 error。typecheck/lint/build/DESIGN lint 全绿。"
+    },
+    {
+      "id": "feat-025",
+      "name": "Unified Creation Cockpit",
+      "description": "以单篇创作为中心的驾驶舱：顶部「方向→写作→检查→发布准备→已发布→复盘」步骤条，辅助面板按 NextAction 自动打开；收敛写作/审阅/包装/平台版本重复编辑入口（旧 URL 重定向或只读）；编辑器工具渐进披露；AI 覆盖性修改预览→接受可撤销；刷新/失败不丢输入。",
+      "dependencies": [
+        "feat-024"
+      ],
+      "status": "not-started",
+      "evidence": ""
+    },
+    {
+      "id": "feat-026",
+      "name": "Manual Publish Assistant and Retro Wizard",
+      "description": "发布中心改为发布助手/发布记录：发布前检查、一键复制平台稿、下载正文与本地图片、粘贴真实链接标记已发布（mock 适配器仅开发测试）；发布后首页下一步变为记录表现；复盘向导自动带入上下文，生成可编辑摘要与 Learning，保留发布结果→平台稿→正文版本→创作说明→新选题溯源；Learning 回流新创作需预览-查重-确认。",
+      "dependencies": [
+        "feat-025"
+      ],
+      "status": "not-started",
+      "evidence": ""
     }
   ]
 }

@@ -52,6 +52,23 @@ const appearanceSchema = z
   })
   .catch({ theme: "light", motion: "system" });
 
+/** 首次引导答案：只作为后续默认值，全部可跳过（空字符串 = 未回答） */
+const onboardingSchema = z
+  .object({
+    completed: z.boolean().catch(false),
+    contentType: z.enum(["", "graphic", "short", "long"]).catch(""),
+    primaryPlatform: z.enum(["", "xiaohongshu", "x", "wechat"]).catch(""),
+    startFrom: z.enum(["", "idea", "material"]).catch(""),
+  })
+  .catch({ completed: false, contentType: "", primaryPlatform: "", startFrom: "" });
+
+const ONBOARDING_DEFAULTS = {
+  completed: false,
+  contentType: "" as const,
+  primaryPlatform: "" as const,
+  startFrom: "" as const,
+};
+
 export const settingsSchema = z.object({
   editor: editorSchema.default({
     autosaveIntervalMs: 1500,
@@ -68,12 +85,14 @@ export const settingsSchema = z.object({
     mockFallback: true,
   }),
   appearance: appearanceSchema.default({ theme: "light", motion: "system" }),
+  onboarding: onboardingSchema.default(ONBOARDING_DEFAULTS),
 });
 
 export type AppSettings = z.infer<typeof settingsSchema>;
 export type EditorSettings = AppSettings["editor"];
 export type AiSettings = AppSettings["ai"];
 export type AppearanceSettings = AppSettings["appearance"];
+export type OnboardingSettings = AppSettings["onboarding"];
 
 export const DEFAULT_SETTINGS: AppSettings = settingsSchema.parse({});
 
