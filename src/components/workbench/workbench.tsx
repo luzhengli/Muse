@@ -40,7 +40,7 @@ const TABS: { id: Tab; label: string; hint?: (d: WorkbenchData) => number }[] = 
  */
 export function Workbench({ data }: { data: WorkbenchData }) {
   const [tab, setTab] = useState<Tab>("review");
-  const [focused, setFocused] = useState(false);
+  const [focused, setFocused] = useState(data.editorPrefs.defaultFocusMode);
   const editorRef = useRef<Editor | null>(null);
   const pickImageRef = useRef<() => void>(() => {});
   const slashBus = useMemo(() => new SlashMenuBus(), []);
@@ -80,6 +80,9 @@ export function Workbench({ data }: { data: WorkbenchData }) {
     content: data.initialContentHtml,
     immediatelyRender: false,
     editorProps: {
+      attributes: {
+        spellcheck: data.editorPrefs.spellcheck ? "true" : "false",
+      },
       handlePaste: (_view, event) => {
         const editor = editorRef.current;
         const files = Array.from(event.clipboardData?.files ?? []).filter((f) =>
@@ -129,6 +132,7 @@ export function Workbench({ data }: { data: WorkbenchData }) {
     editor,
     data.articleId,
     data.initialContentHtml,
+    data.editorPrefs.autosaveIntervalMs,
   );
 
   // 版本变化（恢复历史版本 / 面板保存新版本）时同步编辑器内容

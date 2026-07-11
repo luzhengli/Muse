@@ -68,4 +68,12 @@ export interface WorkbenchData {
   initialContentHtml: string;
   /** 本次加载是否从自动保存的工作稿恢复 */
   restoredFromDraft: boolean;
+  /** 设置中心的编辑器偏好（页面加载时读取） */
+  editorPrefs: {
+    autosaveIntervalMs: number;
+    fontSize: number;
+    lineHeight: number;
+    spellcheck: boolean;
+    defaultFocusMode: boolean;
+  };
 }

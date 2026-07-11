@@ -181,6 +181,17 @@
       ],
       "status": "done",
       "evidence": "2026-07-11：bun test 49/49 通过（markdown 往返 39 项：H1-H6/marks/代码语言/围栏转义/列表/任务列表/嵌套/引用/hr/图片提升/表格管道转义/行内与块级公式/美元边界/未知节点降级上报/全文收敛；drafts 10 项：自动保存去重、覆写不增行、不产生版本、版本递增+基线同步、恢复规则 5 例）。真实浏览器（dev server）：/ 菜单 13 项、中文句号后触发（allowedPrefixes 修复）、dai/gongshi/biaoge 过滤+↑↓ Enter Esc；代码块语言下拉 27 种+hljs 高亮+多行输入；块级/行内公式 KaTeX 渲染、点击选中、Bubble LaTeX 编辑（修复事务后抢焦点缺陷）；表格插入+Tab 导航；任务列表勾选；Bubble 加粗/链接（⌘K 输入框）应用与移除；AI 改写 pending→预览→接受（预览期间前置插入 8 字符后 mapping 仍替换正确段落）、取消不改正文、整段删除后接受禁用+警示；粘贴 Markdown 结构化导入（H2/列表/加粗）；IME composition 序列后内容正确且自动保存；Markdown 预览含 ```typescript、$$..$$、GFM 表格、![]() 资产链接；导出 .md/.html 反馈；自动保存 dirty→已自动保存、无效 server 时显示失败+重试；刷新恢复工作稿提示条、保存 v9 后刷新基线干净；恢复 v7→v10 编辑器同步；专注模式隐藏页头/tabs/面板并居中画布；375px 编辑器无溢出；控制台 0 error；工作台 AI 审阅执行不回归。typecheck/lint/build/DESIGN lint 全绿。已知限制：真实 IME 组字与 .md 文件选择框无法在自动化环境完全模拟（分别以 composition 事件序列与共用解析路径的粘贴导入覆盖）。"
+    },
+    {
+      "id": "feat-019",
+      "name": "Settings and Configuration",
+      "description": "设置中心 /settings：编辑器（自动保存间隔/字号/行高/拼写检查/默认专注模式）、AI（provider/Base URL/模型/超时/mock 兜底、生效值与来源标注、脱敏凭据状态、连接测试）、外观与交互（主题跟随策略、动效偏好）、数据（数据目录/数据库与资产状态/JSON 全量导出）。非敏感偏好存 SQLite（zod 校验+默认+向后兼容），密钥仅环境变量。",
+      "dependencies": [
+        "feat-003",
+        "feat-018"
+      ],
+      "status": "done",
+      "evidence": "2026-07-11：bun test 61/61（新增 settings 12 项：空/损坏/缺失字段/未知字段/越界单字段回退的 schema 兼容、设置>环境变量>默认的优先级解析、provider 决定默认模型、非法环境变量忽略、凭据状态不含密钥）。真实浏览器：/settings 四区块渲染，导航入口高亮；编辑器设置保存（字号 18/间隔 3000）→ 写作台实测 font-size 18px、行高 1.8、spellcheck=false；服务端 zod 校验拒绝越界字号并显示「字号范围 12-22」（原生 HTML 校验为第一道）；测试连接对真实 DeepSeek 成功（896ms）；动效偏好=始终减少 → html[data-motion=reduced]、page-transition animation none、interactive transition 0s，恢复默认后动画回归且表单值同步；mock 兜底关闭 + provider=anthropic（无密钥）→ 写作台 AI 改写显示明确报错「未配置真实 AI 密钥，且设置中已关闭 mock 兜底」且正文不变；/api/export 200 + attachment 头 + 18 表 + 无 api_key 字样；375px 设置页 scrollWidth=375 无溢出；控制台 0 error。配置优先级、密钥脱敏与安全边界记录于 progress.md 决策。typecheck/lint/build/DESIGN lint 全绿。"
     }
   ]
 }

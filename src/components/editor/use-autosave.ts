@@ -6,7 +6,6 @@ import { saveDraft } from "@/actions/articles";
 
 export type SaveState = "idle" | "dirty" | "saving" | "saved" | "error";
 
-const DEBOUNCE_MS = 1500;
 const RETRY_MS = 8000;
 
 /**
@@ -16,7 +15,12 @@ const RETRY_MS = 8000;
  * - 失败保持 dirty 并定时重试；
  * - 页面隐藏时立即抢救一次；离开页面且有未保存内容时弹原生确认。
  */
-export function useAutosave(editor: Editor | null, articleId: number, initialHtml: string) {
+export function useAutosave(
+  editor: Editor | null,
+  articleId: number,
+  initialHtml: string,
+  debounceMs = 1500,
+) {
   const [state, setState] = useState<SaveState>("idle");
   const lastSavedRef = useRef<string>(initialHtml);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -28,7 +32,7 @@ export function useAutosave(editor: Editor | null, articleId: number, initialHtm
     if (!editor || editor.isDestroyed || inFlightRef.current) return;
     if (editor.view.composing) {
       // 输入法组字中，稍后再试
-      timerRef.current = setTimeout(() => void flush(), DEBOUNCE_MS);
+      timerRef.current = setTimeout(() => void flush(), debounceMs);
       return;
     }
     const html = editor.getHTML();
@@ -44,28 +48,28 @@ export function useAutosave(editor: Editor | null, articleId: number, initialHtm
       inFlightRef.current = false;
       setState(editor.isDestroyed || editor.getHTML() === html ? "saved" : "dirty");
       if (!editor.isDestroyed && editor.getHTML() !== html) {
-        timerRef.current = setTimeout(() => void flush(), DEBOUNCE_MS);
+        timerRef.current = setTimeout(() => void flush(), debounceMs);
       }
     } catch {
       inFlightRef.current = false;
       setState("error");
       timerRef.current = setTimeout(() => void flush(), RETRY_MS);
     }
-  }, [editor, articleId]);
+  }, [editor, articleId, debounceMs]);
 
   useEffect(() => {
     if (!editor) return;
     const onUpdate = () => {
       setState("dirty");
       if (timerRef.current) clearTimeout(timerRef.current);
-      timerRef.current = setTimeout(() => void flush(), DEBOUNCE_MS);
+      timerRef.current = setTimeout(() => void flush(), debounceMs);
     };
     editor.on("update", onUpdate);
     return () => {
       editor.off("update", onUpdate);
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [editor, flush]);
+  }, [editor, flush, debounceMs]);
 
   // 页面隐藏时尽快落库；关闭/刷新且有未保存内容时提示
   useEffect(() => {

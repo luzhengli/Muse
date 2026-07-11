@@ -225,6 +225,7 @@ body {
   animation: muse-feedback-enter 180ms var(--ease-out-smooth) both;
 }
 
+/* 降级动效：系统 prefers-reduced-motion 或设置中心「始终减少动效」均生效 */
 @media (prefers-reduced-motion: reduce) {
   .page-transition,
   .panel-transition,
@@ -258,11 +259,43 @@ body {
   }
 }
 
+:root[data-motion="reduced"] .page-transition,
+:root[data-motion="reduced"] .panel-transition,
+:root[data-motion="reduced"] .mobile-nav-drawer,
+:root[data-motion="reduced"] .mobile-nav-backdrop,
+:root[data-motion="reduced"] .ai-feedback,
+:root[data-motion="reduced"] .ai-result-reveal,
+:root[data-motion="reduced"] .ai-pending-icon,
+:root[data-motion="reduced"] .ai-action-pending::after {
+  animation: none;
+}
+
+:root[data-motion="reduced"] .route-progress,
+:root[data-motion="reduced"] .route-progress-bar,
+:root[data-motion="reduced"] .app-main,
+:root[data-motion="reduced"] .interactive-motion {
+  transition: none;
+}
+
+:root[data-motion="reduced"] .route-progress[data-phase="loading"] + .app-shell .app-main {
+  opacity: 1;
+  transform: none;
+}
+
+:root[data-motion="reduced"] .interactive-motion:active {
+  transform: none;
+}
+
+:root[data-motion="reduced"] .ai-action-pending::after {
+  display: none;
+}
+
 /* Tiptap 编辑器排版 */
 .tiptap {
   outline: none;
   min-height: 24rem;
-  line-height: 1.8;
+  /* 行高/字号由编辑器容器提供（设置中心可配，默认 1.8 / 14px） */
+  line-height: inherit;
 }
 .tiptap h1 {
   font-size: 1.5rem;

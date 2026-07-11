@@ -10,6 +10,7 @@ import {
   PenLine,
   Send,
   BarChart3,
+  Settings,
   Menu,
   X,
 } from "lucide-react";
@@ -22,6 +23,7 @@ const items = [
   { href: "/articles", label: "写作台", icon: PenLine },
   { href: "/publish", label: "发布中心", icon: Send },
   { href: "/retro", label: "复盘中心", icon: BarChart3 },
+  { href: "/settings", label: "设置", icon: Settings },
 ];
 
 function BrandMark() {

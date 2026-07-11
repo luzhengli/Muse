@@ -20,13 +20,12 @@ import type {
 export { aiConfigured, IMAGE_GEN_SUPPORTED } from "./provider";
 export type * from "./types";
 
-const DEFAULT_TIMEOUT_MS = 30_000;
-
-function aiTimeoutMs(): number {
-  const configured = Number(process.env.MUSE_AI_TIMEOUT_MS);
-  return Number.isFinite(configured) && configured >= 1_000
-    ? Math.min(configured, 120_000)
-    : DEFAULT_TIMEOUT_MS;
+/** mock 兜底被设置关闭时抛出：调用层原样透出信息，不写库 */
+export class AiUnavailableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "AiUnavailableError";
+  }
 }
 
 function mockDelayMs(): number {
@@ -45,6 +44,12 @@ async function executeAi<T>(
   const startedAt = Date.now();
 
   if (!runtime.model) {
+    // 用户显式选择 mock provider 时视为主动使用 mock，不受兜底开关限制
+    if (!runtime.mockFallback && runtime.provider !== "mock") {
+      throw new AiUnavailableError(
+        "未配置真实 AI 密钥，且设置中已关闭 mock 兜底。请配置密钥或重新开启兜底。",
+      );
+    }
     const delayMs = mockDelayMs();
     if (delayMs > 0) {
       await new Promise((resolve) => setTimeout(resolve, delayMs));
@@ -76,7 +81,7 @@ async function executeAi<T>(
   }
 
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), aiTimeoutMs());
+  const timer = setTimeout(() => controller.abort(), runtime.timeoutMs);
   try {
     const data = await generate(runtime.model, controller.signal);
     const durationMs = Date.now() - startedAt;
@@ -104,6 +109,25 @@ async function executeAi<T>(
   } catch (error) {
     const durationMs = Date.now() - startedAt;
     const reason = controller.signal.aborted ? "timeout" : "provider-error";
+    if (!runtime.mockFallback) {
+      console.error(
+        "[muse-ai]",
+        JSON.stringify({
+          action,
+          provider: runtime.provider,
+          model: runtime.modelId,
+          status: "error",
+          reason,
+          durationMs,
+          errorName: error instanceof Error ? error.name : "UnknownError",
+        }),
+      );
+      throw new AiUnavailableError(
+        reason === "timeout"
+          ? "真实 AI 请求超时，且设置中已关闭 mock 兜底，本次操作未完成。"
+          : "真实 AI 请求失败，且设置中已关闭 mock 兜底，本次操作未完成。",
+      );
+    }
     console.error(
       "[muse-ai]",
       JSON.stringify({

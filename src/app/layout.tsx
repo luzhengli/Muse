@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import "./globals.css";
 import { MobileNav, SideNav } from "@/components/nav";
 import { RouteProgress } from "@/components/route-progress";
+import { getAppSettings } from "@/lib/settings-store";
 
 export const metadata: Metadata = {
   title: "Muse · 创作工厂",
@@ -13,8 +14,13 @@ export const metadata: Metadata = {
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const { appearance } = getAppSettings();
   return (
-    <html lang="zh-CN">
+    <html
+      lang="zh-CN"
+      data-theme={appearance.theme}
+      data-motion={appearance.motion}
+    >
       <body className="antialiased">
         <Suspense fallback={null}>
           <RouteProgress />

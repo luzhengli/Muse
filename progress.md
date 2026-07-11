@@ -4,9 +4,30 @@
 
 **Last Updated:** 2026-07-11
 **Session ID:** muse-v0.2-01
-**Active Feature:** feat-018 已完成（沉浸式 Markdown 编辑器）；下一个：feat-019 设置中心
+**Active Feature:** feat-019 已完成（设置中心）。Muse v0.2「沉浸式写作与本地配置」三个 feature（017/018/019）全部交付。
 
 ## Status
+
+### Current Work（本轮 feat-019 设置中心）
+
+- [x] **存储与校验**：新表 `app_settings`（KV，单行 key='app' 存 JSON）；`src/lib/settings.ts` zod schema（每字段 .catch 单独回退 + 区块级回退），缺失补默认、未知忽略、损坏整体回退——向前向后兼容无需迁移脚本。
+- [x] **配置优先级落地**：`resolveAiConfig` 纯函数实现「设置中心 > 环境变量 > 内置默认」，`provider.ts/index.ts` 改为读 effective config；密钥仍仅从环境变量读取，`credentialStatus` 只暴露布尔。
+- [x] **mock 兜底开关**：设置关闭后未配置/失败抛 `AiUnavailableError`，action 层透出明确中文报错，不产生 mock 内容、不写库。
+- [x] **/settings 页面**：四区块卡片（编辑器/AI/外观与交互/数据）+ 全局导航入口（桌面侧栏与移动抽屉）；AI 区显示生效配置（值+来源 Badge）与脱敏凭据状态、密钥配置指引；数据区显示数据目录、muse.db 大小与行数、资产统计、/api/export JSON 全量导出。
+- [x] **表单与校验反馈**：原生 HTML 约束为第一道，服务端 zod safeParse 为第二道（返回具体中文错误，不写库）；保存/恢复默认/测试连接均有即时反馈；恢复默认后表单本地 state 同步。
+- [x] **编辑器偏好接线**：写作台加载时读取（自动保存间隔→useAutosave debounce、字号/行高→画布 inline style、拼写检查→editorProps、默认专注模式→初始 focused）；修改不影响已打开的编辑页。
+- [x] **动效偏好**：<html data-motion> + `:root[data-motion="reduced"]` 复制降级规则组，设置驱动的减少动效与系统偏好并行生效；主题策略仅持久化并明示暗色未提供。
+- [x] **测试**：tests/settings.test.ts 12 项（schema 兼容 6 + 优先级解析 5 + 凭据脱敏 1），总计 61/61。
+
+### Verification（feat-019，2026-07-11）
+
+- [x] `bun test tests` 61 pass / 0 fail；`./init.sh` 全绿（dev server 已先停止再 build）。
+- [x] 浏览器：/settings 四区块 1280px/375px 渲染无溢出、控制台 0 error；编辑器设置保存（字号 18/间隔 3000）→ 写作台实测 font-size 18px、行高 1.8、spellcheck=false；服务端 zod 拒绝字号 8 并显示「字号范围 12-22」；测试连接真实 DeepSeek 成功（896ms）；动效=始终减少 → html[data-motion=reduced] + page-transition animation none + interactive transition 0s，恢复默认后动画回归、表单同步；mock 兜底关闭 + provider=anthropic（无密钥）→ 写作台 AI 改写显式报错且正文不变，随后恢复默认；/api/export 200 + attachment 头 + 18 表 + 导出内容无 api_key 字样。
+
+### Remaining Risk（feat-019）
+
+- 主题跟随策略仅持久化偏好（暗色主题未实现，UI 已明示）；实现暗色需要设计系统扩展，留待后续 feature。
+- 设置读取在每次 AI 调用/布局渲染时同步查 SQLite 单行，本地单用户开销可忽略；若未来多实例部署需加缓存失效策略。
 
 ### Current Work（本轮 feat-018 沉浸式 Markdown 编辑器）
 
@@ -33,6 +54,15 @@
 - 真实中文 IME 组字仅以 composition 事件序列模拟（浏览器自动化无法驱动系统输入法）；PM 原生 composition 处理 + autosave composing 保护已覆盖，建议真机手动补一次。
 - .md 文件导入的文件选择框未在自动化中触发（与粘贴导入共用 markdownToDoc 路径，已由粘贴路径与单测覆盖）。
 - 偶发一次 slash 菜单首个 Enter 未消费（HMR 重载间隙 keyHandler 注册竞态，刷新后未复现；生产 build 无 HMR）。
+
+### Architecture Decisions（feat-019，实现前记录）
+
+- **存储**：新表 `app_settings`（key TEXT PRIMARY KEY, value TEXT, updated_at），单行 key='app' 存 JSON。zod schema 负责校验、默认值与向后兼容（缺失字段补默认、未知字段忽略、解析失败整体回退默认并告警），不需要逐版本迁移脚本。
+- **配置优先级**（从高到低）：① 密钥永远只来自环境变量（ANTHROPIC_API_KEY / OPENAI_API_KEY / MUSE_AI_API_KEY），不落库不入日志；② AI 非敏感项（provider/baseURL/model/timeout/mock 延迟）：设置中心非空值 > 环境变量 > 内置默认；③ 编辑器与外观偏好：设置中心 > 内置默认。设置页对每个 AI 生效值标注来源（设置/环境变量/默认）。
+- **AI 接入方式**：`lib/settings.ts` 暴露 getEffectiveAiConfig()（同步读 SQLite 单行，better-sqlite3 开销可忽略），provider.ts / index.ts 的 env 读取改为走 effective config；设置保存后下一次 AI 调用即生效，无需重启。
+- **动效偏好**：设置 system|reduced；layout 在 <html data-motion> 输出，globals.css 为 `:root[data-motion="reduced"]` 复制一份 reduced-motion 降级规则，真实可验证。主题跟随策略仅持久化 light|system（暗色主题未实现，UI 明示"当前仅浅色"，不伪装）。
+- **编辑器偏好生效语义**：写作台在页面加载时读取（自动保存间隔/字号/行高/拼写检查/默认专注模式），设置修改不强刷已打开的编辑页，绝不打断正在编辑的文章。
+- **数据导出**：/api/export 全表 JSON dump 下载（本地优先，不含任何密钥或环境变量）。
 
 ### Architecture Decisions（feat-018，实现前记录）
 

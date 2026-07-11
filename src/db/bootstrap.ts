@@ -178,6 +178,12 @@ CREATE TABLE IF NOT EXISTS retro_notes (
   created_at INTEGER NOT NULL DEFAULT (unixepoch())
 );
 
+CREATE TABLE IF NOT EXISTS app_settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+);
+
 CREATE VIRTUAL TABLE IF NOT EXISTS chunk_fts USING fts5(
   content,
   chunk_id UNINDEXED,

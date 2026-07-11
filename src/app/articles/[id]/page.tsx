@@ -17,6 +17,7 @@ import { ArticleTabs } from "@/components/article-tabs";
 import { Workbench } from "@/components/workbench/workbench";
 import type { WorkbenchData } from "@/components/workbench/types";
 import { getDraft, resolveInitialContent } from "@/lib/drafts";
+import { getAppSettings } from "@/lib/settings-store";
 
 export const dynamic = "force-dynamic";
 
@@ -136,6 +137,7 @@ export default async function ArticleEditorPage({
     brief: topic?.brief ?? null,
     initialContentHtml: initial.contentHtml,
     restoredFromDraft: initial.restoredFromDraft,
+    editorPrefs: getAppSettings().editor,
   };
 
   return (

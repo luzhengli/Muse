@@ -512,6 +512,10 @@ export function EditorCanvas({
             "rounded-(--radius-card) border border-(--color-border) bg-(--color-surface) px-6 py-4",
             focused && "min-h-[70vh]",
           )}
+          style={{
+            fontSize: `${data.editorPrefs.fontSize}px`,
+            lineHeight: data.editorPrefs.lineHeight,
+          }}
         >
           <EditorContent editor={editor} className="tiptap" />
         </div>

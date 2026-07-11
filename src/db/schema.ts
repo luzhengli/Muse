@@ -314,6 +314,13 @@ export const retroNotes = sqliteTable("retro_notes", {
   createdAt: integer("created_at").notNull().default(now()),
 });
 
+/** 应用设置：单行 key='app' 存 JSON，zod 负责校验/默认/兼容（见 src/lib/settings.ts） */
+export const appSettings = sqliteTable("app_settings", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: integer("updated_at").notNull().default(now()),
+});
+
 export type Material = typeof materials.$inferSelect;
 export type MaterialChunk = typeof materialChunks.$inferSelect;
 export type Collection = typeof collections.$inferSelect;

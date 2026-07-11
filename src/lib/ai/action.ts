@@ -34,7 +34,10 @@ export async function runExclusiveAiAction<T>(
       );
       return {
         ok: false,
-        message: "操作失败，未写入数据。请稍后重试。",
+        message:
+          error instanceof Error && error.name === "AiUnavailableError"
+            ? error.message
+            : "操作失败，未写入数据。请稍后重试。",
         tone: "danger",
       };
     })
