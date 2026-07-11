@@ -42,7 +42,14 @@ const TABS: { id: Tab; label: string; hint?: (d: WorkbenchData) => number }[] = 
  * 编辑器为唯一结构化文档模型；自动保存写工作稿，显式保存产生版本检查点。
  */
 export function Workbench({ data }: { data: WorkbenchData }) {
-  const [tab, setTab] = useState<Tab>("review");
+  // 辅助面板按 NextAction 自动打开（URL ?panel= 优先）
+  const [tab, setTab] = useState<Tab>(() => {
+    if (data.initialPanel) return data.initialPanel;
+    const target = computeReadiness(data.readinessFacts).nextAction.target;
+    if (target === "brief" || target === "evidence") return "materials";
+    if (target === "packaging") return "packaging";
+    return "review";
+  });
   const [focused, setFocused] = useState(data.editorPrefs.defaultFocusMode);
   const [revisionDirty, setRevisionDirty] = useState(false);
   const [contentEmpty, setContentEmpty] = useState(!data.readinessFacts.hasContent);
@@ -225,11 +232,11 @@ export function Workbench({ data }: { data: WorkbenchData }) {
             onNavigate={navigateReadiness}
             checkpointBadge={
               <>
-                <span className="font-semibold">当前工作稿</span>
+                <span className="font-semibold">当前正文</span>
                 {viewData.activeCheckpoint ? (
-                  <Badge tone="success">检查点 v{viewData.activeCheckpoint.versionNo}</Badge>
+                  <Badge tone="success">已保存版本 v{viewData.activeCheckpoint.versionNo}</Badge>
                 ) : (
-                  <Badge tone="warning">尚未形成检查点</Badge>
+                  <Badge tone="warning">有未保存的新修改</Badge>
                 )}
                 <Badge tone={viewData.reviews.some((r) => !r.stale) ? "success" : "warning"}>
                   审阅{viewData.reviews.some((r) => !r.stale) ? "最新" : "待更新"}
@@ -246,7 +253,7 @@ export function Workbench({ data }: { data: WorkbenchData }) {
         )}
         {data.restoredFromDraft && (
           <div className="ai-feedback mb-2 rounded-(--radius-control) border border-(--color-warning) bg-(--color-warning-soft) px-3 py-2 text-xs text-(--color-warning)">
-            已恢复最近一次自动保存的工作稿（比最新版本新）。如需回到某个版本，请在「版本」面板恢复。
+            已恢复你最近编辑的内容（比上次保存的版本新）。如需回到某个版本，请在「版本」面板恢复。
           </div>
         )}
         <EditorCanvas

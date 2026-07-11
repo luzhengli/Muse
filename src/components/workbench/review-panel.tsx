@@ -144,7 +144,10 @@ export function ReviewPanel({
       {/* 执行 AI 审阅 */}
       <div className="space-y-2 rounded-(--radius-control) border border-(--color-border) p-2.5">
         <div className="text-xs font-semibold">
-          AI 审阅（当前检查点 v{data.activeCheckpoint?.versionNo ?? "待创建"}）
+          AI 审阅
+          {data.activeCheckpoint
+            ? `（基于已保存版本 v${data.activeCheckpoint.versionNo}）`
+            : "（将先自动保存当前正文）"}
         </div>
         <div className="flex gap-1.5">
           <Select

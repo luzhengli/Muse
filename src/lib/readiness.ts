@@ -1,8 +1,10 @@
-import { desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import {
   articles,
   packagings,
   platformVariants,
+  publishResults,
+  publishTasks,
   reviewFindings,
   reviews,
   topics,
@@ -37,6 +39,8 @@ export interface ReadinessFacts {
   review: { hasCurrent: boolean; openCriticalCurrent: number };
   packaging: { exists: boolean; current: boolean };
   variants: { total: number; current: number };
+  /** 发布与复盘事实：驱动「已发布 / 复盘」两个旅程步骤 */
+  publishing: { publishedCount: number; recordedResults: number };
 }
 
 export type ReadinessTarget =
@@ -234,6 +238,39 @@ export function computeReadiness(facts: ReadinessFacts): Readiness {
   return { readyToPublish, state, gaps, nextAction };
 }
 
+/** 创作旅程六步：方向 → 写作 → 检查 → 发布准备 → 已发布 → 复盘 */
+export type JourneyStep =
+  | "direction"
+  | "writing"
+  | "checking"
+  | "preparing"
+  | "published"
+  | "retro";
+
+export const JOURNEY_STEPS: { id: JourneyStep; label: string }[] = [
+  { id: "direction", label: "方向" },
+  { id: "writing", label: "写作" },
+  { id: "checking", label: "检查" },
+  { id: "preparing", label: "发布准备" },
+  { id: "published", label: "已发布" },
+  { id: "retro", label: "复盘" },
+];
+
+/** 由事实推导当前旅程步骤（纯函数） */
+export function deriveJourneyStep(
+  facts: ReadinessFacts,
+  readiness: Readiness,
+): JourneyStep {
+  if (facts.publishing.publishedCount > 0) {
+    return facts.publishing.recordedResults > 0 ? "retro" : "published";
+  }
+  const target = readiness.nextAction.target;
+  if (target === "brief") return "direction";
+  if (target === "editor") return "writing";
+  if (target === "review" || target === "evidence") return "checking";
+  return "preparing";
+}
+
 /** 发布前的服务端强制校验：旧稿或有严重问题时拒绝，不写任务、不调用适配器 */
 export function assertPublishable(
   facts: ReadinessFacts,
@@ -243,7 +280,7 @@ export function assertPublishable(
     return { ok: false, reason: "正文为空，无法发布。" };
   }
   if (!facts.checkpoint) {
-    return { ok: false, reason: "正文有未固化的修改，请先在写作台完成检查或保存。" };
+    return { ok: false, reason: "正文有还没保存的修改，请先回写作台完成检查或保存。" };
   }
   if (isDerivativeStale(variantSourceVersionId, facts.checkpoint.id)) {
     return {
@@ -344,6 +381,28 @@ export async function getReadinessFactsCore(
     ).length,
   };
 
+  const variantIds = variantRows.map((v) => v.id);
+  let publishing = { publishedCount: 0, recordedResults: 0 };
+  if (variantIds.length) {
+    const publishedTasks = await db
+      .select({ id: publishTasks.id })
+      .from(publishTasks)
+      .where(
+        and(
+          inArray(publishTasks.variantId, variantIds),
+          eq(publishTasks.status, "published"),
+        ),
+      );
+    const results = await db
+      .select({ id: publishResults.id })
+      .from(publishResults)
+      .where(inArray(publishResults.variantId, variantIds));
+    publishing = {
+      publishedCount: publishedTasks.length,
+      recordedResults: results.length,
+    };
+  }
+
   return {
     articleId,
     hasContent: contentText.length > 0,
@@ -354,5 +413,6 @@ export async function getReadinessFactsCore(
     review,
     packaging,
     variants,
+    publishing,
   };
 }

@@ -81,15 +81,23 @@ export default async function ArticlesPage({
     <div className="mx-auto max-w-4xl space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-xl font-bold">写作台</h1>
+          <h1 className="text-xl font-bold">创作</h1>
           <p className="mt-1 text-sm text-(--color-muted)">
-            文章母版在这里生产与迭代；从选题生成初稿，或从空白开始。
+            所有创作都在这里迭代。
+            <Link href="/topics" className="text-(--color-primary) hover:underline">
+              选题板视图 →
+            </Link>
           </p>
         </div>
-        <form action={createBlankArticle} className="flex flex-wrap gap-2">
-          <Input name="title" placeholder="新文章标题" className="min-w-0 flex-1 sm:w-56 sm:flex-none" />
-          <Button variant="outline">新建空白文章</Button>
-        </form>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link href="/create">
+            <Button>开始新创作 →</Button>
+          </Link>
+          <form action={createBlankArticle} className="flex flex-wrap gap-2">
+            <Input name="title" placeholder="空白稿标题" className="min-w-0 w-40" />
+            <Button variant="outline">新建空白稿</Button>
+          </form>
+        </div>
       </div>
 
       <ListFilter

@@ -10,6 +10,8 @@ import {
   materials,
   packagings,
   platformVariants,
+  publishResults,
+  publishTasks,
   reviewFindings,
   reviews,
   topics,
@@ -21,6 +23,7 @@ import { briefFingerprint, normalizeTopicBrief } from "@/lib/briefs";
 import {
   assertPublishable,
   computeReadiness,
+  deriveJourneyStep,
   getReadinessFactsCore,
   type ReadinessFacts,
 } from "@/lib/readiness";
@@ -43,6 +46,7 @@ function facts(overrides: Partial<ReadinessFacts> = {}): ReadinessFacts {
     review: { hasCurrent: true, openCriticalCurrent: 0 },
     packaging: { exists: false, current: false },
     variants: { total: 1, current: 1 },
+    publishing: { publishedCount: 0, recordedResults: 0 },
     ...overrides,
   };
 }
@@ -130,6 +134,31 @@ describe("computeReadiness（纯函数）", () => {
   });
 });
 
+describe("deriveJourneyStep（旅程六步，纯函数）", () => {
+  const step = (f: ReadinessFacts) => deriveJourneyStep(f, computeReadiness(f));
+
+  test("按 NextAction 目标映射：方向 / 写作 / 检查 / 发布准备", () => {
+    expect(step(facts({ brief: { complete: false, aligned: null } }))).toBe("direction");
+    expect(step(facts({ hasContent: false, variants: { total: 0, current: 0 } }))).toBe(
+      "writing",
+    );
+    expect(step(facts({ review: { hasCurrent: false, openCriticalCurrent: 0 } }))).toBe(
+      "checking",
+    );
+    expect(step(facts({ variants: { total: 0, current: 0 } }))).toBe("preparing");
+    expect(step(facts())).toBe("preparing"); // 一切就绪 → 去安排发布
+  });
+
+  test("已发布未记录表现 → 已发布；已记录 → 复盘", () => {
+    expect(
+      step(facts({ publishing: { publishedCount: 1, recordedResults: 0 } })),
+    ).toBe("published");
+    expect(
+      step(facts({ publishing: { publishedCount: 1, recordedResults: 1 } })),
+    ).toBe("retro");
+  });
+});
+
 describe("assertPublishable（服务端发布校验）", () => {
   test("正文为空 / 无检查点 / 旧稿 / critical 全部拒绝", () => {
     expect(assertPublishable(facts({ hasContent: false }), 10).ok).toBe(false);
@@ -197,10 +226,23 @@ describe("getReadinessFactsCore（事实汇集）", () => {
     // 旧审阅（无来源）不计入
     await db.insert(reviews).values({ articleId, sourceVersionId: null, type: "ai", summary: "旧" });
 
-    await db.insert(platformVariants).values([
-      { articleId, sourceVersionId: versionId, platform: "x", title: "新", content: "c" },
-      { articleId, sourceVersionId: null, platform: "wechat", title: "旧", content: "c" },
-    ]);
+    const insertedVariants = await db
+      .insert(platformVariants)
+      .values([
+        { articleId, sourceVersionId: versionId, platform: "x", title: "新", content: "c" },
+        { articleId, sourceVersionId: null, platform: "wechat", title: "旧", content: "c" },
+      ])
+      .returning();
+    await db.insert(publishTasks).values({
+      variantId: insertedVariants[0].id,
+      platform: "x",
+      scheduledAt: 1,
+      status: "published",
+    });
+    await db.insert(publishResults).values({
+      variantId: insertedVariants[0].id,
+      platform: "x",
+    });
     await db.insert(packagings).values({ articleId, sourceVersionId: null });
     // 引用：素材存在但语料块缺失 → 降级
     await db.insert(evidenceCitations).values({
@@ -223,6 +265,7 @@ describe("getReadinessFactsCore（事实汇集）", () => {
     expect(facts!.review).toEqual({ hasCurrent: true, openCriticalCurrent: 1 });
     expect(facts!.packaging).toEqual({ exists: true, current: false });
     expect(facts!.variants).toEqual({ total: 2, current: 1 });
+    expect(facts!.publishing).toEqual({ publishedCount: 1, recordedResults: 1 });
   });
 
   test("对齐指纹：NULL → aligned=null；不匹配 → aligned=false", async () => {

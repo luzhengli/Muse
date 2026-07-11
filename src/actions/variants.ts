@@ -31,7 +31,7 @@ export async function generateVariant(
         db,
         articleId,
         undefined,
-        `派生${platform}前自动检查点`,
+        `生成平台稿前自动保存`,
       );
       const version = checkpoint
         ? await db.query.articleVersions.findFirst({ where: eq(articleVersions.id, checkpoint.id) })

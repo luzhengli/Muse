@@ -95,7 +95,7 @@ export function PackagingPanel({
         <div className="text-xs text-(--color-muted)">
           {pack
             ? `物料关联 v${pack.versionNo ?? "-"} · ${fmtTime(pack.createdAt)}`
-            : "基于当前工作稿生成包装物料"}
+            : "基于当前正文生成包装物料"}
           {pack && (
             <Badge tone={pack.stale ? "warning" : "success"}>
               {pack.stale ? "已过期" : "当前结果"}

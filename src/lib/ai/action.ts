@@ -62,7 +62,7 @@ export function completedAiAction<T>(
   if (result.meta.reason === "not-configured") {
     return {
       ...base,
-      message: `${successMessage} 当前未配置真实 AI，结果来自本地 mock。`,
+      message: `${successMessage} 当前未配置真实 AI，这是本地演示结果。`,
       tone: "warning",
     };
   }
@@ -70,14 +70,14 @@ export function completedAiAction<T>(
     ...base,
     message:
       result.meta.reason === "timeout"
-        ? `真实 AI 请求超时，已使用本地 mock 兜底完成。可重试。`
-        : `真实 AI 请求失败，已使用本地 mock 兜底完成。可重试。`,
+        ? `真实 AI 请求超时，已用本地兜底结果完成，可重试。`
+        : `真实 AI 请求失败，已用本地兜底结果完成，可重试。`,
     tone: "warning",
   };
 }
 
 export function aiProvenance(meta: AiRunMeta): string {
   if (meta.source === "real") return "真实 AI";
-  if (meta.reason === "not-configured") return "本地 mock";
-  return meta.reason === "timeout" ? "mock 兜底（AI 超时）" : "mock 兜底（AI 失败）";
+  if (meta.reason === "not-configured") return "本地演示";
+  return meta.reason === "timeout" ? "本地兜底（AI 超时）" : "本地兜底（AI 失败）";
 }

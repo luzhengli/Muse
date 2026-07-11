@@ -4,7 +4,13 @@ import { db, articles, articleVersions, platformVariants, topics, type Platform 
 import { generateVariant, updateVariant, deleteVariant } from "@/actions/variants";
 import { createPublishTask } from "@/actions/publish";
 import { ArticleHeader } from "@/components/article-header";
-import { ArticleTabs } from "@/components/article-tabs";
+import { JourneySteps } from "@/components/journey-steps";
+import { ConfirmButton } from "@/components/confirm-button";
+import {
+  computeReadiness,
+  deriveJourneyStep,
+  getReadinessFactsCore,
+} from "@/lib/readiness";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -40,6 +46,10 @@ export default async function VariantsPage({
     ? await db.query.topics.findFirst({ where: eq(topics.id, article.topicId) })
     : null;
   const active = await getActiveRevisionCore(db, articleId);
+  const facts = await getReadinessFactsCore(db, articleId);
+  const journeyStep = facts
+    ? deriveJourneyStep(facts, computeReadiness(facts))
+    : ("preparing" as const);
   const versionRows = await db
     .select({ id: articleVersions.id, versionNo: articleVersions.versionNo })
     .from(articleVersions)
@@ -54,7 +64,7 @@ export default async function VariantsPage({
         status={article.status}
         topicTitle={topic?.title}
       />
-      <ArticleTabs articleId={articleId} />
+      <JourneySteps articleId={articleId} current={journeyStep} />
 
       {publishBlocked && (
         <div
@@ -128,9 +138,9 @@ export default async function VariantsPage({
                     }}
                     className="ml-auto"
                   >
-                    <Button size="sm" variant="ghost">
+                    <ConfirmButton message={`删除这份${spec.name}平台稿？相关发布任务也会一并删除。`}>
                       删除
-                    </Button>
+                    </ConfirmButton>
                   </form>
                 </div>
                 <CardDescription>

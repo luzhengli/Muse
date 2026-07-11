@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AiActionButton, AiResultTransition } from "@/components/ai-action";
+import { ConfirmButton } from "@/components/confirm-button";
 import { fmtTime } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -82,7 +83,13 @@ export default async function MaterialDetail({
               redirect("/materials");
             }}
           >
-            <Button variant="danger">删除</Button>
+            <ConfirmButton
+              variant="danger"
+              size="default"
+              message="删除这份资料？引用过它的文章会显示「来源已删除」并保留摘录快照。"
+            >
+              删除
+            </ConfirmButton>
           </form>
         </div>
       </div>

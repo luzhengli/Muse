@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input, Textarea, Select, Label } from "@/components/ui/input";
+import { ConfirmButton } from "@/components/confirm-button";
 import { ListFilter } from "@/components/list-filter";
 import { Timeline } from "@/components/timeline";
 import { PLATFORM_IDS, platformName } from "@/lib/platforms";
@@ -98,9 +99,9 @@ export default async function RetroPage({
                       await deleteRetroNote(n.id);
                     }}
                   >
-                    <Button size="sm" variant="ghost">
+                    <ConfirmButton message="删除这条复盘结论？沉淀的经验将无法在新创作中复用。">
                       删除
-                    </Button>
+                    </ConfirmButton>
                   </form>
                 </div>
               </div>

@@ -6,7 +6,6 @@ import { useEffect, useState } from "react";
 import {
   Home,
   Library,
-  Lightbulb,
   PenLine,
   Send,
   BarChart3,
@@ -16,13 +15,13 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+/** feat-025 导航收敛：选题板退出全局导航，作为「创作」页内的库视图链接保留 */
 const items = [
-  { href: "/", label: "工作台", icon: Home },
-  { href: "/materials", label: "素材库", icon: Library },
-  { href: "/topics", label: "选题板", icon: Lightbulb },
-  { href: "/articles", label: "写作台", icon: PenLine },
-  { href: "/publish", label: "发布中心", icon: Send },
-  { href: "/retro", label: "复盘中心", icon: BarChart3 },
+  { href: "/", label: "首页", icon: Home },
+  { href: "/articles", label: "创作", icon: PenLine },
+  { href: "/materials", label: "资料", icon: Library },
+  { href: "/publish", label: "发布记录", icon: Send },
+  { href: "/retro", label: "复盘经验", icon: BarChart3 },
   { href: "/settings", label: "设置", icon: Settings },
 ];
 

@@ -3,7 +3,26 @@
 ## Muse v0.4 — 小白也能无脑推进的可信创作飞轮（进行中）
 
 **Last Updated:** 2026-07-11
-**Active Feature:** feat-022/023/024 已完成；下一步实现 feat-025（统一创作驾驶舱）
+**Active Feature:** feat-022~025 已完成；下一步实现 feat-026（手动发布助手与复盘向导）
+
+### feat-025 实现前契约
+
+- **数据模型**：不新增表。`ReadinessFacts` 扩展 `publishing`（该创作平台稿的已发布任务数、已记录表现数），由既有 publish_tasks / publish_results 汇集；新增纯函数 `deriveJourneyStep(facts, readiness)` 输出「方向/写作/检查/发布准备/已发布/复盘」六步中的当前步（已发布>0 且未记录表现 → 已发布；已记录 → 复盘；否则按 NextAction 目标映射：brief→方向、editor→写作、review/evidence→检查、packaging/variants/publish→发布准备）。
+- **编辑入口收敛（不保留两套）**：`/articles/[id]/review` 与 `/articles/[id]/packaging` 改为服务端 redirect 到写作台对应面板（`/articles/[id]?panel=review|packaging`），历史 URL 不失效；平台稿唯一编辑入口保持 `/articles/[id]/variants`（本就在创作上下文内，带同一页头与步骤条）。文章页顶部的旧四 tab（写作/审阅/包装/平台版本）替换为六步步骤条：当前步高亮、可点击回看（方向/检查→对应面板，写作→编辑器，发布准备→平台稿页，已发布→发布记录，复盘→复盘经验）；回到早前步骤修改时，ReadinessStrip 徽章继续即时标明哪些后续产物待更新。
+- **辅助区自动打开**：写作台右侧面板初始 tab 由 NextAction 目标决定（brief/evidence→资料、review→检查、packaging→包装），URL `?panel=` 优先。
+- **导航收敛**：全局导航改为 首页 / 创作(/articles) / 资料(/materials) / 发布记录(/publish) / 复盘经验(/retro) / 设置；选题板退出导航，作为「创作」页头部的库视图链接保留（/topics 本身不失效）。
+- **编辑器渐进披露**：工具栏默认仅保留常用（撤销重做、H2/H3、加粗斜体、列表、引用、插图、专注）；删除线/行内代码/任务列表/代码块/H1/预览/导入导出等收进「更多」弹出层。自动保存状态只显示「已保存」或错误+重试（dirty/saving 不再展示文案）。
+- **AI 覆盖与破坏性操作**：既有 AI 改写/润色已是预览→接受；接受后的成功反馈附「撤销本次修改」（编辑器事务级 undo）。平台稿删除、复盘记录删除补二次确认（文章删除已有）；引用移除本就保留正文文字属非破坏。领域级软删除/回收站不在本轮范围，作为已知限制记录。
+- **失败路径**：redirect 只读迁移不改数据；面板初始 tab 计算失败回退「检查」；工具栏「更多」为纯客户端展示不影响命令可用性。
+- **验证门槛**：单测覆盖 deriveJourneyStep 六步映射与 publishing 事实汇集、facts 扩展后既有 readiness 测试全绿；浏览器验证旧 URL 重定向、步骤条随状态推进（写作→检查→发布准备→已发布→复盘）、NextAction 自动开面板、更多菜单与保存状态、AI 接受后撤销恢复原文、平台稿删除二次确认、375/1280 无溢出、控制台 0 error。
+
+### feat-025 完成证据
+
+- **实现**：`deriveJourneyStep` + `publishing` 事实；`JourneySteps` 步骤条替换旧四 tab；review/packaging 旧 URL redirect 到 `?panel=`（唯一可编辑入口在写作台面板）；面板按 NextAction 自动打开（URL 优先）；导航收敛为 首页/创作/资料/发布记录/复盘经验/设置（选题板改为创作页内链接，/topics 不失效）；工具栏渐进披露（「更多」菜单 9 项）；保存状态只显示「已保存」/错误+重试；AI 接受后「撤销本次 AI 修改」；ConfirmButton 补平台稿/资料/复盘删除二次确认；删除未使用的 article-tabs 组件与手动状态入口残留。
+- **术语清理**：普通界面不再出现 检查点/工作稿/mock——已保存版本 vN、有未保存的新修改、当前正文、本地演示、本地兜底；版本备注同步改为「检查前自动保存」等自然语言（历史记录保留旧文案，不改写历史）。
+- **测试**：`bun test tests` 114/114；typecheck、lint、build、DESIGN lint 全绿。
+- **浏览器**：旧 /review /packaging URL 重定向且面板正确；无参数时按 NextAction 自动开资料面板；步骤条当前步正确、点击「发布准备」跨页直达平台稿页；「更多」菜单开合与命令应用；真实 AI 改写→接受→一键撤销逐字还原并自动保存；平台稿删除 confirm 拒绝后零删除；375px 步骤条+状态条首屏可见、无横向溢出、无内部术语；控制台 0 error。
+- **已知限制**：破坏性操作提供二次确认；领域级「短期撤销/回收站」（软删除）未实现，编辑器内容级撤销已覆盖 AI 覆盖性修改。
 
 ### feat-024 实现前契约
 

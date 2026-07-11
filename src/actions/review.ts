@@ -40,7 +40,7 @@ export async function runAiReview(
         db,
         articleId,
         currentContentHtml,
-        "审阅前自动检查点",
+        "检查前自动保存",
       );
       const version = checkpoint
         ? await db.query.articleVersions.findFirst({ where: eq(articleVersions.id, checkpoint.id) })
@@ -96,7 +96,7 @@ export async function runFactCheck(
         db,
         articleId,
         currentContentHtml,
-        "事实检查前自动检查点",
+        "事实检查前自动保存",
       );
       const version = checkpoint
         ? await db.query.articleVersions.findFirst({ where: eq(articleVersions.id, checkpoint.id) })
@@ -161,7 +161,7 @@ export async function addHumanFinding(formData: FormData) {
   const articleId = Number(formData.get("articleId"));
   const suggestion = String(formData.get("suggestion") ?? "").trim();
   if (!articleId || !suggestion) return;
-  const checkpoint = await ensureActiveCheckpointCore(db, articleId, undefined, "人工审阅前自动检查点");
+  const checkpoint = await ensureActiveCheckpointCore(db, articleId, undefined, "添加意见前自动保存");
   // 复用或创建当前版本的人工审阅记录
   let review = await db.query.reviews.findFirst({
     where: eq(reviews.articleId, articleId),
@@ -212,7 +212,7 @@ export async function polishFinding(
       db,
       articleId,
       currentContentHtml,
-      "润色前自动检查点",
+      "润色前自动保存",
     );
     if (!finding || !review?.sourceVersionId || !checkpoint) {
       return { ok: false, message: "润色失败：没有可用版本。", tone: "danger" };
@@ -220,7 +220,7 @@ export async function polishFinding(
     if (review.sourceVersionId !== checkpoint.id) {
       return {
         ok: false,
-        message: "这条意见来自旧版本，当前工作稿已变化。请重新审阅后再润色。",
+        message: "这条意见来自旧版本，正文已变化。请重新检查后再润色。",
         tone: "warning",
       };
     }

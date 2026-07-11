@@ -251,8 +251,8 @@
       "dependencies": [
         "feat-024"
       ],
-      "status": "not-started",
-      "evidence": ""
+      "status": "done",
+      "evidence": "2026-07-11：ReadinessFacts 扩展 publishing（已发布任务/已记录表现），deriveJourneyStep 纯函数推导「方向→写作→检查→发布准备→已发布→复盘」当前步；JourneySteps 步骤条（当前步高亮 aria-current、已过步 ✓、逐步可点直达）替换旧四 tab；/articles/[id]/review 与 /packaging 重定向到写作台对应面板（?panel=），不保留两套可编辑入口；辅助面板按 NextAction 自动打开（URL panel 优先）；导航收敛为 首页/创作/资料/发布记录/复盘经验/设置，选题板改为创作页内库视图链接；编辑器工具栏渐进披露（常用直出 + 9 项进「更多」菜单），自动保存只显示「已保存」或错误+重试；AI 覆盖性修改接受后一键「撤销本次 AI 修改」；平台稿/资料/复盘删除补二次确认（ConfirmButton）；普通界面术语清理（检查点→已保存版本、工作稿→当前正文、mock→本地演示/本地兜底）。bun test 114/114（journey 2 项 + publishing 事实汇集断言新增）。真实浏览器：旧 review/packaging URL 重定向且面板正确打开、无 panel 参数时按 NextAction 自动开资料面板、步骤条当前步「方向」且点击「发布准备」跨页直达 variants、「更多」菜单 9 项开合与代码块应用、保存状态仅显示「已保存」、真实 AI 改写→接受→「撤销本次 AI 修改」逐字还原、平台稿删除 confirm 拒绝后 0 删除、375px 步骤条与状态条首屏可见且 scrollWidth=375、界面无检查点/工作稿/mock 字样、控制台 0 error。typecheck/lint/build/DESIGN lint 全绿。已知限制：领域级软删除/回收站未实现（删除仅二次确认），记录于 progress.md。"
     },
     {
       "id": "feat-026",

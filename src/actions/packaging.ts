@@ -30,7 +30,7 @@ export async function generatePackaging(
       db,
       articleId,
       currentContentHtml,
-      "包装前自动检查点",
+      "包装前自动保存",
     );
     const version = checkpoint
       ? await db.query.articleVersions.findFirst({ where: eq(articleVersions.id, checkpoint.id) })

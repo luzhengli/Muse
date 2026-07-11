@@ -4,17 +4,13 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { EditorContent, type Editor } from "@tiptap/react";
 import {
   Bold,
-  Code,
   Italic,
   List,
   ListOrdered,
-  ListTodo,
   Maximize2,
   Minimize2,
   Quote,
   Redo2,
-  SquareCode,
-  Strikethrough,
   Undo2,
 } from "lucide-react";
 import { saveVersion, rewriteText } from "@/actions/articles";
@@ -61,11 +57,9 @@ function download(fileName: string, content: string, mime: string) {
   URL.revokeObjectURL(url);
 }
 
-const SAVE_STATE_LABEL: Record<SaveState, string> = {
-  idle: "无更改",
-  dirty: "有未保存更改…",
-  saving: "自动保存中…",
-  saved: "已自动保存",
+/** feat-025：自动保存只显示「已保存」或错误，中间态不打扰创作 */
+const SAVE_STATE_LABEL: Partial<Record<SaveState, string>> = {
+  saved: "已保存",
   error: "自动保存失败，稍后重试",
 };
 
@@ -97,6 +91,9 @@ export function EditorCanvas({
   const [feedback, setFeedback] = useState<AiActionResult<unknown> | null>(null);
   const [preview, setPreview] = useState<PreviewMode>(null);
   const [ai, setAi] = useState<AiPhase>({ phase: "idle" });
+  const [moreOpen, setMoreOpen] = useState(false);
+  /** AI 覆盖性修改刚被接受：提供一键撤销 */
+  const [aiApplied, setAiApplied] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mdInputRef = useRef<HTMLInputElement>(null);
   const renderPreviewRef = useRef<HTMLDivElement>(null);
@@ -136,6 +133,7 @@ export function EditorCanvas({
     trackerRef.current = trackRange(editor, from, to);
     const requestId = ++aiRequestIdRef.current;
     setFeedback(null);
+    setAiApplied(false);
     setAi({ phase: "pending", mode, original: selectedText });
     void (async () => {
       let result: AiActionResult<string>;
@@ -193,6 +191,14 @@ export function EditorCanvas({
     disposeTracker();
     setFeedback(ai.feedback);
     setAi({ phase: "idle" });
+    setAiApplied(true);
+  }
+
+  function undoAiResult() {
+    if (!editor) return;
+    editor.chain().focus().undo().run();
+    setAiApplied(false);
+    setFeedback({ ok: true, message: "已撤销这次 AI 修改，正文恢复原样。", tone: "success" });
   }
 
   function cancelAiResult() {
@@ -308,7 +314,7 @@ export function EditorCanvas({
 
   return (
     <div className="min-w-0 space-y-2">
-      {/* 工具栏 */}
+      {/* 工具栏：默认只显示常用工具，高级功能进「更多」（feat-025 渐进披露） */}
       <div className="flex flex-wrap items-center gap-0.5 rounded-(--radius-control) border border-(--color-border) bg-(--color-surface) p-1.5">
         {iconButton("撤销", <Undo2 className="h-3.5 w-3.5" />, () => editor.chain().focus().undo().run(), {
           disabled: !editor.can().undo(),
@@ -319,9 +325,6 @@ export function EditorCanvas({
           shortcut: "⌘⇧Z",
         })}
         <span className="mx-1 h-4 w-px bg-(--color-border)" />
-        {textButton("H1", editor.isActive("heading", { level: 1 }), () =>
-          editor.chain().focus().toggleHeading({ level: 1 }).run(),
-        )}
         {textButton("H2", editor.isActive("heading", { level: 2 }), () =>
           editor.chain().focus().toggleHeading({ level: 2 }).run(),
         )}
@@ -337,16 +340,6 @@ export function EditorCanvas({
           active: editor.isActive("italic"),
           shortcut: "⌘I",
         })}
-        {iconButton(
-          "删除线",
-          <Strikethrough className="h-3.5 w-3.5" />,
-          () => editor.chain().focus().toggleStrike().run(),
-          { active: editor.isActive("strike"), shortcut: "⌘⇧S" },
-        )}
-        {iconButton("行内代码", <Code className="h-3.5 w-3.5" />, () => editor.chain().focus().toggleCode().run(), {
-          active: editor.isActive("code"),
-          shortcut: "⌘E",
-        })}
         <span className="mx-1 h-4 w-px bg-(--color-border)" />
         {iconButton("无序列表", <List className="h-3.5 w-3.5" />, () =>
           editor.chain().focus().toggleBulletList().run(),
@@ -358,20 +351,10 @@ export function EditorCanvas({
         {
           active: editor.isActive("orderedList"),
         })}
-        {iconButton("任务列表", <ListTodo className="h-3.5 w-3.5" />, () =>
-          editor.chain().focus().toggleTaskList().run(),
-        {
-          active: editor.isActive("taskList"),
-        })}
         {iconButton("引用块", <Quote className="h-3.5 w-3.5" />, () =>
           editor.chain().focus().toggleBlockquote().run(),
         {
           active: editor.isActive("blockquote"),
-        })}
-        {iconButton("代码块", <SquareCode className="h-3.5 w-3.5" />, () =>
-          editor.chain().focus().toggleCodeBlock().run(),
-        {
-          active: editor.isActive("codeBlock"),
         })}
         {textButton("插图", false, () => fileInputRef.current?.click())}
         <input
@@ -386,14 +369,69 @@ export function EditorCanvas({
             e.target.value = "";
           }}
         />
-        <span className="mx-1 h-4 w-px bg-(--color-border)" />
         {textButton("图文预览", preview === "render", () =>
           setPreview(preview === "render" ? null : "render"),
         )}
-        {textButton("Markdown", preview === "markdown", () =>
-          setPreview(preview === "markdown" ? null : "markdown"),
+        {iconButton(
+          focused ? "退出专注模式" : "专注模式",
+          focused ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />,
+          onToggleFocus,
+          { active: focused },
         )}
-        {textButton("导入 .md", false, () => mdInputRef.current?.click())}
+        <span className="relative">
+          {textButton("更多 ▾", moreOpen, () => setMoreOpen((v) => !v))}
+          {moreOpen && (
+            <>
+              <button
+                type="button"
+                aria-label="关闭更多菜单"
+                className="fixed inset-0 z-10 cursor-default"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  setMoreOpen(false);
+                }}
+              />
+              <div
+                role="menu"
+                aria-label="更多编辑工具"
+                className="absolute left-0 top-8 z-20 w-44 rounded-(--radius-control) border border-(--color-border) bg-(--color-surface) p-1 shadow-md"
+              >
+                {(
+                  [
+                    ["H1 大标题", editor.isActive("heading", { level: 1 }), () => editor.chain().focus().toggleHeading({ level: 1 }).run()],
+                    ["删除线", editor.isActive("strike"), () => editor.chain().focus().toggleStrike().run()],
+                    ["行内代码", editor.isActive("code"), () => editor.chain().focus().toggleCode().run()],
+                    ["任务列表", editor.isActive("taskList"), () => editor.chain().focus().toggleTaskList().run()],
+                    ["代码块", editor.isActive("codeBlock"), () => editor.chain().focus().toggleCodeBlock().run()],
+                    ["Markdown 源码", preview === "markdown", () => setPreview(preview === "markdown" ? null : "markdown")],
+                    ["导入 .md", false, () => mdInputRef.current?.click()],
+                    ["导出 .md", false, () => handleExport("md")],
+                    ["导出 .html", false, () => handleExport("html")],
+                  ] as [string, boolean, () => void][]
+                ).map(([label, active, run]) => (
+                  <button
+                    key={label}
+                    type="button"
+                    role="menuitem"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      run();
+                      setMoreOpen(false);
+                    }}
+                    className={cn(
+                      "interactive-motion block w-full rounded px-2 py-1.5 text-left text-xs",
+                      active
+                        ? "bg-(--color-primary-soft) font-semibold text-(--color-primary)"
+                        : "text-(--color-foreground) hover:bg-(--color-muted-bg)",
+                    )}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </span>
         <input
           ref={mdInputRef}
           type="file"
@@ -405,16 +443,18 @@ export function EditorCanvas({
             e.target.value = "";
           }}
         />
-        {textButton("导出 .md", false, () => handleExport("md"))}
-        {textButton("导出 .html", false, () => handleExport("html"))}
-        <span className="mx-1 h-4 w-px bg-(--color-border)" />
-        {iconButton(
-          focused ? "退出专注模式" : "专注模式",
-          focused ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />,
-          onToggleFocus,
-          { active: focused },
-        )}
-        <AiActionFeedback result={feedback} className="ml-auto" />
+        <span className="ml-auto flex items-center gap-1.5">
+          {aiApplied && (
+            <button
+              type="button"
+              onClick={undoAiResult}
+              className="interactive-motion rounded px-2 py-1 text-xs text-(--color-primary) hover:bg-(--color-primary-soft)"
+            >
+              撤销本次 AI 修改
+            </button>
+          )}
+          <AiActionFeedback result={feedback} />
+        </span>
       </div>
 
       {/* AI 处理 / 结果预览卡（位置固定，不随选区浮动） */}
@@ -535,7 +575,7 @@ export function EditorCanvas({
             saveState === "saved" && "text-(--color-success)",
           )}
         >
-          {SAVE_STATE_LABEL[saveState]}
+          {SAVE_STATE_LABEL[saveState] ?? ""}
           {saveState === "error" && (
             <button type="button" onClick={onRetrySave} className="ml-1 underline">
               重试

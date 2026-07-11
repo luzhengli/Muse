@@ -14,7 +14,7 @@ import {
   assets,
 } from "@/db";
 import { ArticleHeader } from "@/components/article-header";
-import { ArticleTabs } from "@/components/article-tabs";
+import { JourneySteps } from "@/components/journey-steps";
 import { Workbench } from "@/components/workbench/workbench";
 import type { WorkbenchData } from "@/components/workbench/types";
 import { getDraft, resolveInitialContent } from "@/lib/drafts";
@@ -22,16 +22,23 @@ import { getAppSettings } from "@/lib/settings-store";
 import { isDerivativeStale } from "@/lib/revisions";
 import { normalizeTopicBrief } from "@/lib/briefs";
 import { getCitationStatesCore } from "@/lib/citations";
-import { getReadinessFactsCore } from "@/lib/readiness";
+import {
+  computeReadiness,
+  deriveJourneyStep,
+  getReadinessFactsCore,
+} from "@/lib/readiness";
 
 export const dynamic = "force-dynamic";
 
 export default async function ArticleEditorPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ panel?: string }>;
 }) {
   const { id } = await params;
+  const { panel } = await searchParams;
   const articleId = Number(id);
   const article = await db.query.articles.findFirst({
     where: eq(articles.id, articleId),
@@ -101,6 +108,12 @@ export default async function ArticleEditorPage({
 
   const readinessFacts = await getReadinessFactsCore(db, articleId);
   if (!readinessFacts) notFound();
+  const readiness = computeReadiness(readinessFacts);
+  const journeyStep = deriveJourneyStep(readinessFacts, readiness);
+  const validPanels = ["review", "packaging", "versions", "materials"] as const;
+  const initialPanel = validPanels.includes(panel as (typeof validPanels)[number])
+    ? (panel as (typeof validPanels)[number])
+    : null;
 
   const data: WorkbenchData = {
     articleId,
@@ -180,6 +193,7 @@ export default async function ArticleEditorPage({
     })),
     brief: topic ? normalizeTopicBrief(topic.brief, topic) : null,
     readinessFacts,
+    initialPanel,
     activeCheckpoint: activeCheckpoint
       ? { id: activeCheckpoint.id, versionNo: activeCheckpoint.versionNo }
       : null,
@@ -198,7 +212,7 @@ export default async function ArticleEditorPage({
           topicTitle={topic?.title}
           hideStatus
         />
-        <ArticleTabs articleId={articleId} />
+        <JourneySteps articleId={articleId} current={journeyStep} />
       </div>
       <Workbench data={data} />
     </div>

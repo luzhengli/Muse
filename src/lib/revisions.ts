@@ -57,7 +57,7 @@ export async function ensureActiveCheckpointCore(
   db: MuseDb,
   articleId: number,
   currentContentHtml?: string,
-  note = "下游操作自动检查点",
+  note = "自动保存的版本",
 ) {
   if (currentContentHtml !== undefined) {
     await saveDraftCore(db, articleId, currentContentHtml);
