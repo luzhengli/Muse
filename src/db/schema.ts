@@ -162,6 +162,34 @@ export const articleCitations = sqliteTable("article_citations", {
   createdAt: integer("created_at").notNull().default(now()),
 });
 
+/**
+ * 证据引用：正文中的引用精确关联到语料块。
+ * 素材删除或重清洗时外键置空，摘录与快照保留，永远不静默丢失用户的引用依据；
+ * 有效状态不落库，读取时由 src/lib/citations.ts 的纯函数按当前事实计算。
+ */
+export const evidenceCitations = sqliteTable("evidence_citations", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  /** 稳定引用身份，正文 citation mark 与 Markdown 边界均使用它 */
+  key: text("key").notNull().unique(),
+  articleId: integer("article_id")
+    .notNull()
+    .references(() => articles.id, { onDelete: "cascade" }),
+  materialId: integer("material_id").references(() => materials.id, {
+    onDelete: "set null",
+  }),
+  chunkId: integer("chunk_id").references(() => materialChunks.id, {
+    onDelete: "set null",
+  }),
+  /** 引用时选定的语料摘录（用于插入正文与失效判断） */
+  excerpt: text("excerpt").notNull().default(""),
+  /** 引用时语料块全文快照（来源降级后仍可解释「当时依据是什么」） */
+  contextSnapshot: text("context_snapshot").notNull().default(""),
+  sourceTitle: text("source_title").notNull().default(""),
+  sourceUrl: text("source_url"),
+  createdAt: integer("created_at").notNull().default(now()),
+  updatedAt: integer("updated_at").notNull().default(now()),
+});
+
 /** 审阅：一次 AI 或人工审阅 */
 export const reviews = sqliteTable("reviews", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -184,6 +212,9 @@ export type ReviewCategory =
   | "compliance"
   | "polish";
 
+/** 事实检查结论：资料支持 / 缺少资料 / 资料冲突 / 来源不可用 */
+export type EvidenceState = "supported" | "missing" | "conflict" | "unavailable";
+
 /** 审阅意见条目 */
 export const reviewFindings = sqliteTable("review_findings", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -201,6 +232,10 @@ export const reviewFindings = sqliteTable("review_findings", {
   status: text("status", { enum: ["open", "accepted", "ignored"] })
     .notNull()
     .default("open"),
+  /** 仅 AI 事实检查产生的意见携带；缺少本地资料不是事实错误 */
+  evidenceState: text("evidence_state", {
+    enum: ["supported", "missing", "conflict", "unavailable"],
+  }),
 });
 
 export interface CardStructure {
@@ -339,6 +374,7 @@ export type Article = typeof articles.$inferSelect;
 export type ArticleVersion = typeof articleVersions.$inferSelect;
 export type ArticleDraft = typeof articleDrafts.$inferSelect;
 export type ArticleCitation = typeof articleCitations.$inferSelect;
+export type EvidenceCitation = typeof evidenceCitations.$inferSelect;
 export type Review = typeof reviews.$inferSelect;
 export type ReviewFinding = typeof reviewFindings.$inferSelect;
 export type Packaging = typeof packagings.$inferSelect;

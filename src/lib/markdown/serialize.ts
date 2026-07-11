@@ -51,7 +51,9 @@ function serializeTextNode(node: DocNode, ctx: Ctx): string {
 
   // code 与其他 mark 共存时，code 已在最内层；其余按固定顺序包裹
   const order = ["strike", "italic", "bold"];
-  const rest = marks.filter((m) => m.type !== "code" && m.type !== "link");
+  const rest = marks.filter(
+    (m) => m.type !== "code" && m.type !== "link" && m.type !== "citation",
+  );
   for (const type of order) {
     if (rest.some((m) => m.type === type)) {
       const [open, close] = MARK_WRAPPERS[type];
@@ -61,8 +63,13 @@ function serializeTextNode(node: DocNode, ctx: Ctx): string {
   for (const m of rest) {
     if (!order.includes(m.type)) ctx.onUnknown("mark", m.type);
   }
+  // 证据引用以 muse://cite 链接形式往返；与普通链接共存时引用身份优先
+  const citation = marks.find((m): m is DocMark => m.type === "citation");
   const link = marks.find((m): m is DocMark => m.type === "link");
-  if (link) {
+  if (citation) {
+    const key = encodeURIComponent(String(citation.attrs?.key ?? ""));
+    out = `[${out}](muse://cite/${key})`;
+  } else if (link) {
     const href = String(link.attrs?.href ?? "");
     out = `[${out}](${href})`;
   }

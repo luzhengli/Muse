@@ -557,6 +557,18 @@ body {
   border-radius: 4px;
 }
 
+/* 证据引用：克制的紫色点线下划线，点击可在资料面板查看「这句话有什么依据」 */
+.citation-ref {
+  text-decoration: underline dotted var(--color-primary);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  border-radius: 2px;
+}
+.tiptap .citation-ref:hover {
+  background: var(--color-primary-soft);
+}
+
 /* 链接 */
 .tiptap a {
   color: var(--color-primary);

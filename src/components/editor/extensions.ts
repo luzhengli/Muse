@@ -13,12 +13,18 @@ import Placeholder from "@tiptap/extension-placeholder";
 import { ReactNodeViewRenderer } from "@tiptap/react";
 import { common, createLowlight } from "lowlight";
 import { InlineMath, BlockMath } from "./math";
+import { Citation } from "./citation-mark";
 import { CodeBlockView } from "./code-block-view";
 
 const lowlight = createLowlight(common);
 
+export interface EditorExtensionOptions {
+  /** 点击带引用标记的文字时回调（工作台用于展示「这句话有什么依据」） */
+  onCitationClick?: (key: string) => void;
+}
+
 /** 写作台编辑器的统一扩展集（feat-018 沉浸式 Markdown 编辑器） */
-export function createEditorExtensions() {
+export function createEditorExtensions(options: EditorExtensionOptions = {}) {
   return [
     StarterKit.configure({
       codeBlock: false, // 换用 lowlight 高亮版本
@@ -43,6 +49,7 @@ export function createEditorExtensions() {
     TaskItem.configure({ nested: true }),
     InlineMath,
     BlockMath,
+    Citation.configure({ onCitationClick: options.onCitationClick }),
     CharacterCount,
     Placeholder.configure({
       placeholder: "开始写作，输入 / 插入标题、列表、代码块、公式、表格……",

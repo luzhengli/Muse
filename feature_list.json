@@ -214,8 +214,8 @@
       "name": "Evidence and Citation Loop",
       "description": "把文章关联素材升级为可定位语料块的证据引用，支持搜索、复制、插入、持久化与 Markdown 往返；AI 事实审阅区分来源支持、缺失和冲突，并为素材或引用删除提供可理解降级。",
       "dependencies": ["feat-021"],
-      "status": "not-started",
-      "evidence": ""
+      "status": "done",
+      "evidence": "2026-07-11：新表 evidence_citations（key 引用身份 + 摘录 + 上下文快照 + material/chunk 外键 SET NULL），有效状态读取时纯函数计算；重清洗按摘录重定位、未命中降级；review_findings 兼容补 evidence_state。Tiptap citation mark（span[data-citation]）+ Markdown 边界 [text](muse://cite/KEY) 往返。写作台资料面板：FTS 搜索→预览→插入摘录并引用/为选中文字关联→点击正文引用文字自动打开面板高亮「这句话有什么依据」。AI 事实检查（aiFactCheck）区分资料支持/缺少资料/资料冲突/来源不可用，缺少资料 severity=info 且不表述为错误。bun test 88/88（新增 citations 15：有效性纯函数、重定位与降级、素材删除快照保留、MD 往返、link/citation 共存优先、mock 确定性、旧库补列）。真实浏览器（文章 12/素材 8，验后清理）：搜索命中真实清洗语料块、插入+关联两种引用、点击引用文字面板高亮详情、真实 DeepSeek 事实检查（72% 论断=supported、300% 论断=missing 文案「无法核实」、素材删除后=unavailable）、重清洗后「来源已变化」+原始快照、删除后「来源已删除」、移除引用清除 mark 保留文字、刷新后 mark 持久、Markdown 预览含 muse://cite、375/768/1280 无横向溢出、控制台 0 error。typecheck/lint/build/DESIGN lint 全绿。"
     },
     {
       "id": "feat-023",

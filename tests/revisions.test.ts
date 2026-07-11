@@ -91,6 +91,15 @@ describe("兼容迁移", () => {
     sqlite.exec(`
       CREATE TABLE articles (id INTEGER PRIMARY KEY, title TEXT NOT NULL);
       CREATE TABLE article_versions (id INTEGER PRIMARY KEY);
+      CREATE TABLE review_findings (
+        id INTEGER PRIMARY KEY,
+        review_id INTEGER NOT NULL,
+        category TEXT NOT NULL,
+        severity TEXT NOT NULL DEFAULT 'info',
+        quote TEXT NOT NULL DEFAULT '',
+        suggestion TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'open'
+      );
       CREATE TABLE platform_variants (
         id INTEGER PRIMARY KEY,
         article_id INTEGER NOT NULL,
@@ -105,6 +114,7 @@ describe("兼容迁移", () => {
     const statements = compatibilityMigrationSql({
       articles: ["id", "title"],
       platformVariants: ["id", "article_id", "platform", "title", "content"],
+      reviewFindings: ["id", "review_id", "category", "severity", "quote", "suggestion", "status"],
     });
     statements.forEach((statement) => sqlite.exec(statement));
 

@@ -10,13 +10,26 @@ import {
   materialChunks,
   collections,
   collectionMaterials,
+  evidenceCitations,
   UPLOAD_DIR,
 } from "@/db";
 import { indexChunk, removeChunksFromIndex } from "@/db/fts";
 import { aiClean } from "@/lib/ai";
 import type { AiActionResult } from "@/lib/ai";
 import { completedAiAction, runExclusiveAiAction } from "@/lib/ai/action";
+import { relinkCitationsForMaterialCore } from "@/lib/citations";
 import { nowUnix } from "@/lib/utils";
+
+/** 素材变化影响到的文章页需要刷新（引用有效状态是读取时计算的） */
+async function revalidateCitingArticles(materialId: number) {
+  const rows = await db
+    .select({ articleId: evidenceCitations.articleId })
+    .from(evidenceCitations)
+    .where(eq(evidenceCitations.materialId, materialId));
+  for (const articleId of new Set(rows.map((r) => r.articleId))) {
+    revalidatePath(`/articles/${articleId}`);
+  }
+}
 
 function parseTags(raw: string | null | undefined): string[] {
   return (raw ?? "")
@@ -142,6 +155,9 @@ export async function cleanMaterial(id: number): Promise<AiActionResult> {
         .returning();
       indexChunk(chunk.id, id, content);
     }
+    // 重清洗后按摘录重定位既有引用；未命中的保持降级，不伪造关联
+    await relinkCitationsForMaterialCore(db, id);
+    await revalidateCitingArticles(id);
     const mergedTags = [...new Set([...material.tags, ...result.data.tags])].slice(0, 8);
     await db
       .update(materials)
@@ -159,6 +175,8 @@ export async function cleanMaterial(id: number): Promise<AiActionResult> {
 }
 
 export async function deleteMaterial(id: number) {
+  // 先刷新受影响文章再删除：删除后外键置空，引用降级为「来源已删除」但保留快照
+  await revalidateCitingArticles(id);
   removeChunksFromIndex(id);
   await db.delete(materials).where(eq(materials.id, id));
   revalidatePath("/materials");

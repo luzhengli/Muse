@@ -25,9 +25,13 @@ function createDb() {
   const variantCols = sqlite
     .prepare("PRAGMA table_info(platform_variants)")
     .all() as { name: string }[];
+  const findingCols = sqlite
+    .prepare("PRAGMA table_info(review_findings)")
+    .all() as { name: string }[];
   for (const statement of compatibilityMigrationSql({
     articles: articleCols.map((c) => c.name),
     platformVariants: variantCols.map((c) => c.name),
+    reviewFindings: findingCols.map((c) => c.name),
   })) {
     sqlite.exec(statement);
   }

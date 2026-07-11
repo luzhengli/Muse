@@ -1,5 +1,27 @@
 # Session Progress Log
 
+## Muse v0.4 — 小白也能无脑推进的可信创作飞轮（进行中）
+
+**Last Updated:** 2026-07-11
+**Active Feature:** feat-022 — Evidence and Citation Loop
+
+### feat-022 实现前契约
+
+- **数据模型**：新表 `evidence_citations`（`key` 唯一引用身份、`article_id` CASCADE、`material_id`/`chunk_id` 均 `ON DELETE SET NULL`、`excerpt` 摘录、`context_snapshot` 引用时语料块全文快照、`source_title`/`source_url` 来源快照）。素材删除/重清洗不删除引用行，只让外键置空后依赖快照降级展示。`review_findings` 兼容补可空列 `evidence_state`（supported/missing/conflict/unavailable），旧行保持 NULL。旧 `article_citations`（素材级关联）保留不动。
+- **引用身份与有效状态**：有效性不落库、读取时由纯函数计算——素材不存在 → `source-missing`（来源已删除，仅展示快照）；当前语料块内容包含摘录（空白归一后）→ `valid`；否则 `source-changed`（来源已变化，请核对）。素材重清洗后按摘录文本在新语料块中重定位（命中则更新 `chunk_id` 与上下文快照，保持引用身份延续；未命中保持置空降级），绝不伪造关联。
+- **编辑器与 Markdown 往返**：新增 Tiptap `citation` mark（attrs.key，`<span data-citation>` 持久化于 contentHtml，`inclusive:false`）；Markdown 边界表达为 `[文本](muse://cite/KEY)`，导入解析回 citation mark，往返不丢失；同一文本同时存在 link 与 citation 时以 citation 优先并有单测锁定。
+- **状态转换**：写作台「资料」面板支持 FTS 搜索语料块 → 预览 → 「插入摘录并引用」（插入摘录文本并打 mark + 落库引用行）或「为选中文字关联依据」（对选区打 mark + 落库）；移除引用删除行并同步清除正文中该 key 的 mark。AI 事实检查走 `ensureActiveCheckpointCore` 版本契约，结果作为 review（category=fact）落库，`evidence_state` 区分资料支持/缺少资料/资料冲突/来源不可用；「缺少资料」severity 最高为 info，文案不得表述为事实错误。
+- **失败路径**：素材未清洗无语料块时搜索给出明确提示；引用落库失败不改动正文；正文中 mark 被用户删除时引用行保留并在面板显示「未出现在正文中」，不静默删除；事实检查无可用检查点时明确失败不调用 AI。
+- **兼容策略**：新表用 `CREATE TABLE IF NOT EXISTS` 建立；`review_findings.evidence_state` 用 `PRAGMA table_info` 幂等补列；旧审阅/引用数据不迁移不删除；`compatibilityMigrationSql` 扩签名并更新既有单测。
+- **验证门槛**：单测覆盖有效性纯函数、重清洗重定位与降级、素材删除快照保留、Markdown 引用往返、link/citation 共存、mock 事实检查确定性分类、旧库补列；typecheck/lint/build/DESIGN lint 后做真实浏览器验证（搜索→引用→插入→事实检查→素材重清洗与删除降级→刷新持久化），全部通过才置 done。
+
+### feat-022 完成证据
+
+- **实现**：`src/lib/citations.ts`（有效性纯函数 + 重定位 + 状态读取，DI 可测）、`src/actions/citations.ts`（searchEvidence/citeChunk/removeEvidence）、`src/components/editor/citation-mark.ts`（citation mark + 点击回调 + 定位/清除工具）、Markdown serialize/parse 支持 `[text](muse://cite/KEY)` 往返、`aiFactCheck` + `mockFactCheck` + `runFactCheck`（走 ensureActiveCheckpointCore 版本契约）、素材 cleanMaterial 重清洗后重定位引用、资料面板三段式（查找/本文依据/相关素材）。
+- **测试**：`bun test tests` 88/88（citations 15 项新增）；typecheck、lint、build、DESIGN lint 全绿。
+- **浏览器**（真实 DeepSeek，测试数据文章 12/素材 8 已按 ID 清理）：FTS 搜索命中→预览→「插入摘录并引用」正文出现带 mark 摘录并落库；「为选中文字关联」对选区打 mark；点击正文引用文字自动切到资料面板并高亮「这句话有什么依据」；事实检查区分 supported（72% 论断）/missing（300% 论断，文案「无法核实」非「错误」）/unavailable（素材删除后）；重清洗改变内容→「来源已变化」+引用时快照；删除素材→「来源已删除」+快照保留；移除引用删行+清 mark 留文字；刷新后 mark 持久；Markdown 预览含 muse://cite；375/768/1280 无横向溢出；控制台 0 error。
+- **已知限制**：Browser pane 自动化对右侧面板的合成点击存在坐标空间偏差（已知工具限制，feat-017 亦记录过），改用完整 DOM 事件序列验证同一代码路径；真实指针操作不受影响。
+
 ## Muse v0.3 — 可信创作闭环（进行中）
 
 **Last Updated:** 2026-07-11

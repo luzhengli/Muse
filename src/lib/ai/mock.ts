@@ -4,6 +4,8 @@ import type {
   BriefGen,
   CleanGen,
   DraftGen,
+  FactCheckEvidenceInput,
+  FactCheckGen,
   MaterialInput,
   PackagingGen,
   ReviewGen,
@@ -233,6 +235,69 @@ export function mockReview(text: string, platform?: PlatformSpec): ReviewGen {
   return {
     summary: `共 ${findings.length} 条建议：${findings.filter((f) => f.severity !== "info").length} 条需要处理，其余为润色参考。`,
     findings,
+  };
+}
+
+/**
+ * 确定性事实检查 mock：
+ * 依据有效且摘录出现在正文相关位置 → 资料支持；
+ * 来源已变化或已删除 → 来源不可用；
+ * 含具体数据但没有任何资料支持的句子 → 缺少资料（明确不是事实错误）。
+ */
+export function mockFactCheck(
+  text: string,
+  evidence: FactCheckEvidenceInput[],
+): FactCheckGen {
+  const claims: FactCheckGen["claims"] = [];
+  const compact = (s: string) => s.replace(/\s+/g, "");
+  const body = compact(text);
+
+  for (const ev of evidence) {
+    const probe = compact(ev.excerpt).slice(0, 24);
+    if (ev.state !== "available") {
+      claims.push({
+        quote: truncate(ev.excerpt, 60),
+        verdict: "unavailable",
+        explanation: `引用的来源《${ev.sourceTitle || "未知来源"}》${
+          ev.state === "missing" ? "已被删除" : "内容已变化"
+        }，无法继续核对该依据，请更新引用或改用其他资料。`,
+      });
+    } else if (probe && body.includes(probe)) {
+      claims.push({
+        quote: truncate(ev.excerpt, 60),
+        verdict: "supported",
+        explanation: `该表述与素材《${ev.sourceTitle}》中的摘录一致，本地资料支持。`,
+      });
+    } else {
+      claims.push({
+        quote: truncate(ev.excerpt, 60),
+        verdict: "supported",
+        explanation: `已关联素材《${ev.sourceTitle}》作为依据；正文措辞与摘录不同，请自行确认语义一致。`,
+      });
+    }
+  }
+
+  const numeric = sentences(text).find(
+    (s) =>
+      /\d{2,}[%万亿倍]/.test(s) &&
+      !evidence.some((ev) => compact(s).includes(compact(ev.excerpt).slice(0, 24))),
+  );
+  if (numeric) {
+    claims.push({
+      quote: truncate(numeric, 60),
+      verdict: "missing",
+      explanation:
+        "这句话包含具体数据，但本地资料库中没有找到支持它的素材。这不代表它是错的——可以补充引用资料，或将其标记为个人观点。",
+    });
+  }
+
+  const supported = claims.filter((c) => c.verdict === "supported").length;
+  const attention = claims.length - supported;
+  return {
+    summary: claims.length
+      ? `核对了 ${claims.length} 处表述：${supported} 处有资料支持，${attention} 处需要补充资料或更新引用。`
+      : "未发现需要核对的具体事实表述；如有重要观点，建议关联资料或标记为个人观点。",
+    claims,
   };
 }
 

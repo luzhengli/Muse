@@ -9,6 +9,8 @@ import type {
   AiResult,
   CleanGen,
   DraftGen,
+  FactCheckEvidenceInput,
+  FactCheckGen,
   MaterialInput,
   PackagingGen,
   ReviewGen,
@@ -372,6 +374,64 @@ export async function aiReview(
     return object;
     },
     () => mock.mockReview(text, spec),
+  );
+}
+
+/**
+ * AI 事实检查：只依据本地资料核对，严格区分四种结论。
+ * 「缺少资料」绝不表述为事实错误——本地资料库不完整是常态。
+ */
+export async function aiFactCheck(
+  text: string,
+  evidence: FactCheckEvidenceInput[],
+): Promise<AiResult<FactCheckGen>> {
+  const evidenceContext = evidence.length
+    ? evidence
+        .map(
+          (ev, i) =>
+            `<资料 ${i + 1} 来源="${ev.sourceTitle}" 状态="${
+              ev.state === "available"
+                ? "可用"
+                : ev.state === "changed"
+                  ? "来源内容已变化"
+                  : "来源已删除"
+            }">\n${ev.excerpt.slice(0, 600)}\n</资料>`,
+        )
+        .join("\n\n")
+    : "（本文尚未关联任何资料）";
+  return executeAi(
+    "fact-check-article",
+    async (model, abortSignal) => {
+      const { object } = await generateObject({
+        model,
+        abortSignal,
+        mode: "json",
+        schema: z.object({
+          summary: z.string().describe("一句话总结核对结果，语气克制"),
+          claims: z.array(
+            z.object({
+              quote: z.string().describe("正文中被核对的表述原文片段"),
+              verdict: z.enum(["supported", "missing", "conflict", "unavailable"]),
+              explanation: z.string().describe("核对说明，面向普通创作者的自然语言"),
+            }),
+          ),
+        }),
+        prompt: `你是严谨的事实核对助手。只依据下面提供的本地资料核对正文中的事实性表述，逐条给出结论：
+- supported（资料支持）：表述与某条资料一致；
+- missing（缺少资料）：表述是具体的事实性论断，但提供的资料没有覆盖它。注意：这不是事实错误，只说明本地资料库没有对应依据，建议补充资料或标记为个人观点，绝不能说它「错误」「失实」；
+- conflict（资料冲突）：表述与某条资料明显矛盾，说明矛盾点；
+- unavailable（来源不可用）：表述引用的资料状态为「来源内容已变化」或「来源已删除」。
+不要核对纯观点、感受或修辞；不要臆测资料之外的世界知识。
+
+本地资料：
+${evidenceContext}
+
+正文：
+${text.slice(0, 12000)}`,
+      });
+      return object;
+    },
+    () => mock.mockFactCheck(text, evidence),
   );
 }
 

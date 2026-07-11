@@ -32,7 +32,7 @@ const TABS: { id: Tab; label: string; hint?: (d: WorkbenchData) => number }[] = 
   },
   { id: "packaging", label: "包装" },
   { id: "versions", label: "版本", hint: (d) => d.versions.length },
-  { id: "materials", label: "素材", hint: (d) => d.citations.length },
+  { id: "materials", label: "资料", hint: (d) => d.evidence.length + d.citations.length },
 ];
 
 /**
@@ -43,6 +43,7 @@ export function Workbench({ data }: { data: WorkbenchData }) {
   const [tab, setTab] = useState<Tab>("review");
   const [focused, setFocused] = useState(data.editorPrefs.defaultFocusMode);
   const [revisionDirty, setRevisionDirty] = useState(false);
+  const [activeCitationKey, setActiveCitationKey] = useState<string | null>(null);
   const editorRef = useRef<Editor | null>(null);
   const pickImageRef = useRef<() => void>(() => {});
   const slashBus = useMemo(() => new SlashMenuBus(), []);
@@ -71,7 +72,13 @@ export function Workbench({ data }: { data: WorkbenchData }) {
 
   const extensions = useMemo(
     () => [
-      ...createEditorExtensions(),
+      ...createEditorExtensions({
+        // 点击已引用文字 → 打开资料面板展示「这句话有什么依据」
+        onCitationClick: (key) => {
+          setActiveCitationKey(key);
+          setTab("materials");
+        },
+      }),
       createSlashExtension(
         slashBus,
         buildSlashItems(() => pickImageRef.current()),
@@ -247,7 +254,14 @@ export function Workbench({ data }: { data: WorkbenchData }) {
               {tab === "review" && <ReviewPanel editor={editor} data={viewData} />}
               {tab === "packaging" && <PackagingPanel editor={editor} data={viewData} />}
               {tab === "versions" && <VersionPanel data={viewData} />}
-              {tab === "materials" && <MaterialsPanel data={viewData} />}
+              {tab === "materials" && (
+                <MaterialsPanel
+                  editor={editor}
+                  data={viewData}
+                  activeCitationKey={activeCitationKey}
+                  onActiveCitationChange={setActiveCitationKey}
+                />
+              )}
             </div>
           </div>
         </div>

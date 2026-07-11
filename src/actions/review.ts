@@ -10,14 +10,15 @@ import {
   reviewFindings,
   type ReviewCategory,
 } from "@/db";
-import { aiReview, aiPolishWithSuggestion } from "@/lib/ai";
-import type { AiActionResult } from "@/lib/ai";
+import { aiReview, aiPolishWithSuggestion, aiFactCheck } from "@/lib/ai";
+import type { AiActionResult, FactCheckEvidenceInput } from "@/lib/ai";
 import {
   aiProvenance,
   completedAiAction,
   runExclusiveAiAction,
 } from "@/lib/ai/action";
 import { ensureActiveCheckpointCore } from "@/lib/revisions";
+import { getCitationStatesCore } from "@/lib/citations";
 
 interface PolishPreview {
   mode: "fragment" | "document";
@@ -75,6 +76,75 @@ export async function runAiReview(
       revalidatePath(`/articles/${articleId}/review`);
       revalidatePath(`/articles/${articleId}`);
       return completedAiAction(result, "AI 审阅完成。");
+    },
+  );
+}
+
+/**
+ * AI 事实检查：只依据本文关联的本地资料核对，
+ * 区分资料支持 / 缺少资料 / 资料冲突 / 来源不可用；缺少资料不是事实错误。
+ */
+export async function runFactCheck(
+  articleId: number,
+  currentContentHtml?: string,
+): Promise<AiActionResult> {
+  return runExclusiveAiAction(
+    `fact-check:article:${articleId}`,
+    "fact-check-article",
+    async () => {
+      const checkpoint = await ensureActiveCheckpointCore(
+        db,
+        articleId,
+        currentContentHtml,
+        "事实检查前自动检查点",
+      );
+      const version = checkpoint
+        ? await db.query.articleVersions.findFirst({ where: eq(articleVersions.id, checkpoint.id) })
+        : null;
+      if (!version) {
+        return { ok: false, message: "没有可检查的文章内容。", tone: "danger" };
+      }
+      const citations = await getCitationStatesCore(db, articleId);
+      const evidence: FactCheckEvidenceInput[] = citations.map((c) => ({
+        key: c.key,
+        sourceTitle: c.sourceTitle,
+        excerpt: c.excerpt,
+        state:
+          c.validity === "valid"
+            ? "available"
+            : c.validity === "source-changed"
+              ? "changed"
+              : "missing",
+      }));
+      const result = await aiFactCheck(version.contentText, evidence);
+      const [review] = await db
+        .insert(reviews)
+        .values({
+          articleId,
+          sourceVersionId: version.id,
+          type: "ai",
+          summary: `【${aiProvenance(result.meta)}】事实检查：${result.data.summary}`,
+        })
+        .returning();
+      if (result.data.claims.length) {
+        await db.insert(reviewFindings).values(
+          result.data.claims.map((claim) => ({
+            reviewId: review.id,
+            category: "fact" as const,
+            // 缺少资料不是错误 → info；冲突与来源不可用需要处理 → warn
+            severity:
+              claim.verdict === "conflict" || claim.verdict === "unavailable"
+                ? ("warn" as const)
+                : ("info" as const),
+            quote: claim.quote,
+            suggestion: claim.explanation,
+            evidenceState: claim.verdict,
+          })),
+        );
+      }
+      revalidatePath(`/articles/${articleId}/review`);
+      revalidatePath(`/articles/${articleId}`);
+      return completedAiAction(result, "事实检查完成。");
     },
   );
 }

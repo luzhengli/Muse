@@ -4,6 +4,7 @@ import { useRef, useState, useTransition } from "react";
 import type { Editor } from "@tiptap/react";
 import {
   runAiReview,
+  runFactCheck,
   addHumanFinding,
   setFindingStatus,
   polishFinding,
@@ -12,7 +13,7 @@ import { saveVersion } from "@/actions/articles";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea, Select } from "@/components/ui/input";
-import { reviewCategoryLabel, severityLabel } from "@/lib/labels";
+import { evidenceStateLabel, reviewCategoryLabel, severityLabel } from "@/lib/labels";
 import { PLATFORM_IDS, platformName } from "@/lib/platforms";
 import { cn, fmtTime } from "@/lib/utils";
 import type { WorkbenchData, WbFinding } from "./types";
@@ -35,6 +36,7 @@ export function ReviewPanel({
 }) {
   const [platform, setPlatform] = useState("");
   const [running, startRunning] = useTransition();
+  const [factChecking, startFactChecking] = useTransition();
   const [polishing, startPolishing] = useTransition();
   const [applying, startApplying] = useTransition();
   const [polishingId, setPolishingId] = useState<number | null>(null);
@@ -85,6 +87,22 @@ export function ReviewPanel({
     });
   }
 
+  function handleFactCheck() {
+    if (runningRef.current) return;
+    runningRef.current = true;
+    setFeedback(null);
+    startFactChecking(async () => {
+      try {
+        const result = await runFactCheck(data.articleId, editor?.getHTML());
+        setFeedback(result);
+      } catch {
+        setFeedback({ ok: false, message: "事实检查未完成，请重试。", tone: "danger" });
+      } finally {
+        runningRef.current = false;
+      }
+    });
+  }
+
   function acceptPolish(finding: WbFinding) {
     if (!editor || !polish) return;
     startApplying(async () => {
@@ -119,7 +137,7 @@ export function ReviewPanel({
     });
   }
 
-  const busy = running || polishing || applying;
+  const busy = running || factChecking || polishing || applying;
 
   return (
     <div className="space-y-3">
@@ -153,6 +171,28 @@ export function ReviewPanel({
           >
             <AiButtonContent pending={running} label="执行" pendingLabel="审阅中…" />
           </Button>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Button
+            size="sm"
+            variant="secondary"
+            className={cn(
+              "ai-action-trigger",
+              factChecking && "ai-action-pending disabled:opacity-100",
+            )}
+            disabled={busy || !editor}
+            aria-busy={factChecking}
+            onClick={handleFactCheck}
+          >
+            <AiButtonContent
+              pending={factChecking}
+              label="事实检查（核对依据）"
+              pendingLabel="核对中…"
+            />
+          </Button>
+          <span className="text-[10px] text-(--color-muted)">
+            只依据本文关联的资料核对
+          </span>
         </div>
         <button
           type="button"
@@ -236,7 +276,13 @@ export function ReviewPanel({
               >
                 <div className="flex flex-wrap items-center gap-1">
                   <Badge tone="primary">{reviewCategoryLabel[f.category]}</Badge>
-                  <Badge tone={sev?.tone ?? "default"}>{sev?.text ?? f.severity}</Badge>
+                  {f.evidenceState ? (
+                    <Badge tone={evidenceStateLabel[f.evidenceState]?.tone ?? "default"}>
+                      {evidenceStateLabel[f.evidenceState]?.text ?? f.evidenceState}
+                    </Badge>
+                  ) : (
+                    <Badge tone={sev?.tone ?? "default"}>{sev?.text ?? f.severity}</Badge>
+                  )}
                   {f.status === "accepted" && <Badge tone="success">已处理</Badge>}
                   {f.status === "ignored" && <Badge>已忽略</Badge>}
                 </div>

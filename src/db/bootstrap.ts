@@ -103,7 +103,22 @@ CREATE TABLE IF NOT EXISTS review_findings (
   severity TEXT NOT NULL DEFAULT 'info',
   quote TEXT NOT NULL DEFAULT '',
   suggestion TEXT NOT NULL,
-  status TEXT NOT NULL DEFAULT 'open'
+  status TEXT NOT NULL DEFAULT 'open',
+  evidence_state TEXT
+);
+
+CREATE TABLE IF NOT EXISTS evidence_citations (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  key TEXT NOT NULL UNIQUE,
+  article_id INTEGER NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
+  material_id INTEGER REFERENCES materials(id) ON DELETE SET NULL,
+  chunk_id INTEGER REFERENCES material_chunks(id) ON DELETE SET NULL,
+  excerpt TEXT NOT NULL DEFAULT '',
+  context_snapshot TEXT NOT NULL DEFAULT '',
+  source_title TEXT NOT NULL DEFAULT '',
+  source_url TEXT,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+  updated_at INTEGER NOT NULL DEFAULT (unixepoch())
 );
 
 CREATE TABLE IF NOT EXISTS packagings (
@@ -196,12 +211,15 @@ CREATE INDEX IF NOT EXISTS idx_chunks_material ON material_chunks(material_id);
 CREATE INDEX IF NOT EXISTS idx_versions_article ON article_versions(article_id);
 CREATE INDEX IF NOT EXISTS idx_variants_article ON platform_variants(article_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON publish_tasks(status, scheduled_at);
+CREATE INDEX IF NOT EXISTS idx_evidence_article ON evidence_citations(article_id);
+CREATE INDEX IF NOT EXISTS idx_evidence_material ON evidence_citations(material_id);
 `;
 
 /** 根据现有列返回幂等兼容迁移；旧数据不伪造无法确认的来源版本。 */
 export function compatibilityMigrationSql(columns: {
   articles: string[];
   platformVariants: string[];
+  reviewFindings: string[];
 }) {
   const statements: string[] = [];
   if (!columns.articles.includes("summary")) {
@@ -214,6 +232,9 @@ export function compatibilityMigrationSql(columns: {
     statements.push(
       "ALTER TABLE platform_variants ADD COLUMN source_version_id INTEGER REFERENCES article_versions(id) ON DELETE SET NULL",
     );
+  }
+  if (!columns.reviewFindings.includes("evidence_state")) {
+    statements.push("ALTER TABLE review_findings ADD COLUMN evidence_state TEXT");
   }
   statements.push(
     "CREATE INDEX IF NOT EXISTS idx_variants_source_version ON platform_variants(source_version_id)",

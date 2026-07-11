@@ -21,6 +21,7 @@ import { getDraft, resolveInitialContent } from "@/lib/drafts";
 import { getAppSettings } from "@/lib/settings-store";
 import { isDerivativeStale } from "@/lib/revisions";
 import { normalizeTopicBrief } from "@/lib/briefs";
+import { getCitationStatesCore } from "@/lib/citations";
 
 export const dynamic = "force-dynamic";
 
@@ -54,6 +55,8 @@ export default async function ArticleEditorPage({
         .where(inArray(materials.id, citations.map((c) => c.materialId)))
     : [];
   const materialById = new Map(citedMaterials.map((m) => [m.id, m]));
+
+  const evidenceStates = await getCitationStatesCore(db, articleId);
 
   const reviewRows = await db
     .select()
@@ -108,6 +111,18 @@ export default async function ArticleEditorPage({
       title: materialById.get(c.materialId)?.title ?? `素材#${c.materialId}`,
       summary: materialById.get(c.materialId)?.summary ?? "",
     })),
+    evidence: evidenceStates.map((e) => ({
+      id: e.id,
+      key: e.key,
+      materialId: e.materialId,
+      excerpt: e.excerpt,
+      contextSnapshot: e.contextSnapshot,
+      sourceTitle: e.sourceTitle,
+      sourceUrl: e.sourceUrl,
+      validity: e.validity,
+      currentChunkContent: e.currentChunkContent,
+      createdAt: e.createdAt,
+    })),
     reviews: reviewRows.map((r) => ({
       id: r.id,
       type: r.type,
@@ -125,6 +140,7 @@ export default async function ArticleEditorPage({
           quote: f.quote,
           suggestion: f.suggestion,
           status: f.status,
+          evidenceState: f.evidenceState,
         })),
     })),
     packaging: latestPack

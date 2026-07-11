@@ -132,14 +132,21 @@ function inlineToNodes(tokens: Token[], ctx: { images: DocNode[] }): DocNode[] {
       case "s_close":
         popMark(markStack, "strike");
         break;
-      case "link_open":
-        markStack.push({
-          type: "link",
-          attrs: { href: t.attrGet("href") ?? "" },
-        });
+      case "link_open": {
+        const href = t.attrGet("href") ?? "";
+        // muse://cite/KEY 是证据引用的 Markdown 边界表达，还原为 citation mark
+        if (href.startsWith("muse://cite/")) {
+          markStack.push({
+            type: "citation",
+            attrs: { key: decodeURIComponent(href.slice("muse://cite/".length)) },
+          });
+        } else {
+          markStack.push({ type: "link", attrs: { href } });
+        }
         break;
+      }
       case "link_close":
-        popMark(markStack, "link");
+        if (!popMark(markStack, "link")) popMark(markStack, "citation");
         break;
       case "code_inline":
         out.push(textNode(t.content, [...current(), { type: "code" }]));
@@ -174,9 +181,13 @@ function inlineToNodes(tokens: Token[], ctx: { images: DocNode[] }): DocNode[] {
   return out;
 }
 
-function popMark(stack: DocMark[], type: string) {
+function popMark(stack: DocMark[], type: string): boolean {
   const idx = stack.map((m) => m.type).lastIndexOf(type);
-  if (idx >= 0) stack.splice(idx, 1);
+  if (idx >= 0) {
+    stack.splice(idx, 1);
+    return true;
+  }
+  return false;
 }
 
 /**

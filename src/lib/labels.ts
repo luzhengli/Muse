@@ -36,3 +36,24 @@ export const severityLabel: Record<
   warn: { text: "注意", tone: "warning" },
   critical: { text: "严重", tone: "danger" },
 };
+
+/** 事实检查结论：缺少资料是中性提示，不是错误 */
+export const evidenceStateLabel: Record<
+  string,
+  { text: string; tone: "default" | "primary" | "success" | "warning" | "danger" }
+> = {
+  supported: { text: "资料支持", tone: "success" },
+  missing: { text: "缺少资料", tone: "default" },
+  conflict: { text: "资料冲突", tone: "danger" },
+  unavailable: { text: "来源不可用", tone: "warning" },
+};
+
+/** 证据引用的有效状态（读取时计算） */
+export const citationValidityLabel: Record<
+  string,
+  { text: string; tone: "default" | "primary" | "success" | "warning" | "danger" }
+> = {
+  valid: { text: "依据有效", tone: "success" },
+  "source-changed": { text: "来源已变化", tone: "warning" },
+  "source-missing": { text: "来源已删除", tone: "danger" },
+};

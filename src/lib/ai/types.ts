@@ -80,6 +80,27 @@ export interface ReviewGen {
   findings: ReviewFindingGen[];
 }
 
+/** 事实检查的输入证据：来自文章的引用及其当前状态 */
+export interface FactCheckEvidenceInput {
+  key: string;
+  sourceTitle: string;
+  excerpt: string;
+  /** available=依据有效；changed=来源已变化；missing=来源已删除 */
+  state: "available" | "changed" | "missing";
+}
+
+export interface FactCheckClaimGen {
+  quote: string;
+  /** supported=资料支持；missing=缺少资料（不是错误）；conflict=资料冲突；unavailable=来源不可用 */
+  verdict: "supported" | "missing" | "conflict" | "unavailable";
+  explanation: string;
+}
+
+export interface FactCheckGen {
+  summary: string;
+  claims: FactCheckClaimGen[];
+}
+
 export interface PackagingGen {
   titleCandidates: string[];
   summary: string;
