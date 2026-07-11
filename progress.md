@@ -3,9 +3,26 @@
 ## Muse v0.4 — 小白也能无脑推进的可信创作飞轮（进行中）
 
 **Last Updated:** 2026-07-11
-**Active Feature:** feat-022 — Evidence and Citation Loop
+**Active Feature:** feat-022/023 已完成；下一步在 feature_list.json 新增并实现 feat-024（新手引导、首页与创建向导）
 
-### feat-022 实现前契约
+### feat-023 实现前契约
+
+- **数据模型**：仅新增 `articles.aligned_brief_fingerprint TEXT`（可空，幂等补列），记录「当前正文被确认对齐到哪个 Brief 指纹」。写入时机：① 从 Brief 预览确认生成初稿 / 自动初稿时写当前 Brief 指纹；② 保存 Brief 前，对该选题下指纹为空的既有文章回填「编辑前 Brief 的指纹」（在动作发生时记录合理事实，不凭空猜测）；③ 用户在写作台显式点击「确认正文已对齐」。指纹为 NULL（旧数据、从未记录）不产生缺口，不伪造状态。
+- **唯一状态计算**：新增 `src/lib/readiness.ts`。`getReadinessFactsCore(db, articleId)` 汇集六类事实（正文与工作稿、当前检查点、Brief 完整性与对齐指纹、要点证据覆盖、引用有效状态、当前检查点上的审阅与未处理 critical、包装/平台稿来源）；`computeReadiness(facts)` 纯函数输出有序缺口列表（每条含自然语言标题、原因、直达位置、是否可跳过与风险、是否阻断发布）与唯一 NextAction；不读 `articles.status`，不看“执行过某动作”。客户端用同一纯函数在正文变化时即时重算。
+- **缺口优先级**：正文为空（阻断）→ 创作说明不完整（可跳过）→ 创作说明修改后未确认对齐（可跳过）→ 需证据要点未覆盖（可跳过）→ 未处理严重问题（阻断）→ 当前正文尚未检查（可跳过）→ 引用依据降级（可跳过）→ 包装基于旧正文（可跳过）→ 无平台稿/平台稿全部过期（阻断发布）。全部缺口保留展示，主行动只取第一条。
+- **发布服务端校验**：`assertPublishable(facts, variantSourceVersionId)` 纯函数；`createPublishTask` 拒绝时不落任务并以 redirect 查询参数回显中文原因；`executeTask`（立即发布/到期执行/重试共用）在调用适配器前再次校验，拒绝时任务置 failed 且 lastError 写明「平台稿基于旧正文」等原因——旧稿保留但不可发布。
+- **状态表达收敛**：写作台头部撤下 `articles.status` 徽章与人工状态入口，改显示 readiness 自然语言状态（禁止手动状态绕过）；`articles.status` 列保留供列表筛选与旧数据兼容，不再参与任何决策（全站入口收敛在 feat-025 处理并记录）。
+- **失败路径**：facts 汇集失败（文章不存在）返回 null 由页面 404；发布校验失败不写任务/不调用适配器；确认对齐失败不改指纹。
+- **验证门槛**：单测覆盖 computeReadiness 主要状态组合与优先级、assertPublishable 四类拒绝、getReadinessFactsCore 对内存库的事实汇集、对齐指纹三种来源与 NULL 兼容；跑全套检查后浏览器验证：正文变化→缺口即时更新且旧产物标过期、直达按钮落位、旧平台稿创建任务被拒并回显原因、到期任务对过期稿置 failed、确认对齐闭环、375/1280 无溢出、控制台 0 error。
+
+### feat-023 完成证据
+
+- **实现**：`src/lib/readiness.ts`（事实汇集 + 纯函数 readiness/NextAction + assertPublishable）、`src/components/workbench/readiness-strip.tsx`（状态 + 唯一主行动 + 待办分级 + 确认对齐）、workbench 客户端用同一纯函数在正文变化时即时重算；`articles.aligned_brief_fingerprint` 幂等补列，对齐事实在初稿确认 / Brief 编辑前回填 / 显式确认三处写入；`createPublishTask` 与 `executeTask` 双重服务端校验；删除未使用的 `updateArticleStatus` 手动状态入口，写作台头部撤下 status 徽章。
+- **测试**：`bun test tests` 103/103（readiness 15 项新增）；typecheck、lint、build、DESIGN lint 全绿。
+- **浏览器**（文章 13/选题 19，验后按 ID 清理）：空文→「从写下第一段开始」+ 开始写作；输入正文即时变为「距离可发布还差 1 步」+ 分级待办；人工 critical →「处理严重问题」阻断，处理后主行动自动切到「生成平台稿」并直达平台版本页；新平台稿创建任务成功横幅；改正文后创建任务被拦（未固化原因），保存 v3 后旧稿被拦（旧正文原因），已排队任务「立即发布」被服务端置 failed 且 lastError 写明原因；重新派生平台稿后发布恢复；Brief 修改→「查看创作说明并确认」缺口→「确认正文已对齐」即清除；dev server 中断+刷新后正文与状态完整恢复（失败不丢输入）；375px 首屏可见状态与唯一下一步、scrollWidth=375；控制台 0 error。
+- **决策**：`articles.status` 列保留（列表筛选与旧数据兼容）但不再参与任何决策与写作台展示；全站状态入口收敛留给 feat-025 记录处理。对齐指纹为 NULL 的旧文章不产生缺口（不伪造事实），在下一次 Brief 编辑时回填编辑前指纹。
+
+### feat-022 实现前契约（已完成）
 
 - **数据模型**：新表 `evidence_citations`（`key` 唯一引用身份、`article_id` CASCADE、`material_id`/`chunk_id` 均 `ON DELETE SET NULL`、`excerpt` 摘录、`context_snapshot` 引用时语料块全文快照、`source_title`/`source_url` 来源快照）。素材删除/重清洗不删除引用行，只让外键置空后依赖快照降级展示。`review_findings` 兼容补可空列 `evidence_state`（supported/missing/conflict/unavailable），旧行保持 NULL。旧 `article_citations`（素材级关联）保留不动。
 - **引用身份与有效状态**：有效性不落库、读取时由纯函数计算——素材不存在 → `source-missing`（来源已删除，仅展示快照）；当前语料块内容包含摘录（空白归一后）→ `valid`；否则 `source-changed`（来源已变化，请核对）。素材重清洗后按摘录文本在新语料块中重定位（命中则更新 `chunk_id` 与上下文快照，保持引用身份延续；未命中保持置空降级），绝不伪造关联。

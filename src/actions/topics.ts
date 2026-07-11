@@ -142,6 +142,14 @@ export async function saveTopicBrief(
   if (!topic) return { ok: false, message: "选题不存在。", tone: "danger" };
   const brief = normalizeTopicBrief(input, topic);
   const article = await db.query.articles.findFirst({ where: eq(articles.topicId, topicId) });
+  // 编辑 Brief 前，为从未记录对齐事实的既有文章回填「编辑前 Brief 的指纹」：
+  // 在动作发生时记录合理事实，之后指纹不一致即提示“需确认对齐”，不凭空猜测。
+  if (article && article.alignedBriefFingerprint === null && topic.brief) {
+    await db
+      .update(articles)
+      .set({ alignedBriefFingerprint: briefFingerprint(normalizeTopicBrief(topic.brief, topic)) })
+      .where(eq(articles.id, article.id));
+  }
   await db
     .update(topics)
     .set({ brief, status: article ? topic.status : "briefed" })
@@ -156,6 +164,19 @@ export async function saveTopicBrief(
     tone: article ? "warning" : "success",
     data: { hasArticle: Boolean(article) },
   };
+}
+
+/** 用户显式确认：当前正文与最新创作说明一致（记录对齐事实，不改正文） */
+export async function confirmBriefAlignment(articleId: number) {
+  const article = await db.query.articles.findFirst({ where: eq(articles.id, articleId) });
+  if (!article?.topicId) return;
+  const topic = await db.query.topics.findFirst({ where: eq(topics.id, article.topicId) });
+  if (!topic) return;
+  await db
+    .update(articles)
+    .set({ alignedBriefFingerprint: briefFingerprint(normalizeTopicBrief(topic.brief, topic)) })
+    .where(eq(articles.id, articleId));
+  revalidatePath(`/articles/${articleId}`);
 }
 
 export async function previewDraftFromBrief(
@@ -208,6 +229,11 @@ export async function confirmDraftPreview(
     preview.contentHtml,
     `${preview.sourceLabel || "AI"} · 基于当前 Brief 的新初稿`,
   );
+  // 初稿由当前 Brief 生成 → 记录对齐事实
+  await db
+    .update(articles)
+    .set({ alignedBriefFingerprint: briefFingerprint(currentBrief) })
+    .where(eq(articles.id, article.id));
   if (created && topic.materialIds.length) {
     await db.insert(articleCitations).values(
       topic.materialIds.map((materialId) => ({
@@ -264,7 +290,12 @@ export async function createDraftFromTopic(topicId: number): Promise<AiActionRes
 
     const [article] = await db
       .insert(articles)
-      .values({ topicId, title: draftResult.data.title, status: "draft" })
+      .values({
+        topicId,
+        title: draftResult.data.title,
+        status: "draft",
+        alignedBriefFingerprint: briefFingerprint(brief),
+      })
       .returning();
     await db.insert(articleVersions).values({
       articleId: article.id,

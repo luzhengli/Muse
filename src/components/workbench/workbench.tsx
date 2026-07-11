@@ -19,7 +19,9 @@ import { ReviewPanel } from "./review-panel";
 import { PackagingPanel } from "./packaging-panel";
 import { VersionPanel } from "./version-panel";
 import { MaterialsPanel } from "./materials-panel";
+import { ReadinessStrip } from "./readiness-strip";
 import { Badge } from "@/components/ui/badge";
+import { computeReadiness, type ReadinessTarget } from "@/lib/readiness";
 
 type Tab = "review" | "packaging" | "versions" | "materials";
 
@@ -43,6 +45,7 @@ export function Workbench({ data }: { data: WorkbenchData }) {
   const [tab, setTab] = useState<Tab>("review");
   const [focused, setFocused] = useState(data.editorPrefs.defaultFocusMode);
   const [revisionDirty, setRevisionDirty] = useState(false);
+  const [contentEmpty, setContentEmpty] = useState(!data.readinessFacts.hasContent);
   const [activeCitationKey, setActiveCitationKey] = useState<string | null>(null);
   const editorRef = useRef<Editor | null>(null);
   const pickImageRef = useRef<() => void>(() => {});
@@ -93,6 +96,7 @@ export function Workbench({ data }: { data: WorkbenchData }) {
     immediatelyRender: false,
     onUpdate: ({ editor: updatedEditor }) => {
       setRevisionDirty(updatedEditor.getHTML() !== activeCheckpointHtml);
+      setContentEmpty(updatedEditor.getText().trim() === "");
     },
     editorProps: {
       attributes: {
@@ -158,6 +162,32 @@ export function Workbench({ data }: { data: WorkbenchData }) {
     };
   }, [data, revisionDirty]);
 
+  // 唯一领域状态：服务端事实 + 正文实时变化，同一纯函数即时重算
+  const readiness = useMemo(() => {
+    const facts = data.readinessFacts;
+    if (!revisionDirty) {
+      return computeReadiness({ ...facts, hasContent: !contentEmpty });
+    }
+    return computeReadiness({
+      ...facts,
+      hasContent: !contentEmpty,
+      checkpoint: null,
+      review: { hasCurrent: false, openCriticalCurrent: 0 },
+      packaging: { ...facts.packaging, current: false },
+      variants: { ...facts.variants, current: 0 },
+    });
+  }, [data.readinessFacts, revisionDirty, contentEmpty]);
+
+  function navigateReadiness(target: ReadinessTarget) {
+    if (target === "editor") {
+      editorRef.current?.chain().focus().run();
+      return;
+    }
+    if (target === "brief" || target === "evidence") setTab("materials");
+    else if (target === "review") setTab("review");
+    else if (target === "packaging") setTab("packaging");
+  }
+
   const { state: saveState, setBaseline, flush } = useAutosave(
     editor,
     data.articleId,
@@ -189,23 +219,30 @@ export function Workbench({ data }: { data: WorkbenchData }) {
     >
       <div className={cn(focused && "mx-auto w-full max-w-3xl")}>
         {!focused && (
-          <div className="mb-2 flex flex-wrap items-center gap-1.5 rounded-(--radius-control) border border-(--color-border) bg-(--color-surface) px-3 py-2 text-xs">
-            <span className="font-semibold">当前工作稿</span>
-            {viewData.activeCheckpoint ? (
-              <Badge tone="success">检查点 v{viewData.activeCheckpoint.versionNo}</Badge>
-            ) : (
-              <Badge tone="warning">尚未形成检查点</Badge>
-            )}
-            <Badge tone={viewData.reviews.some((r) => !r.stale) ? "success" : "warning"}>
-              审阅{viewData.reviews.some((r) => !r.stale) ? "最新" : "待更新"}
-            </Badge>
-            <Badge tone={viewData.packaging && !viewData.packaging.stale ? "success" : "warning"}>
-              包装{viewData.packaging && !viewData.packaging.stale ? "最新" : "待更新"}
-            </Badge>
-            <Badge tone={viewData.variants.some((v) => !v.stale) ? "success" : "warning"}>
-              平台稿{viewData.variants.some((v) => !v.stale) ? "最新" : "待更新"}
-            </Badge>
-          </div>
+          <ReadinessStrip
+            articleId={data.articleId}
+            readiness={readiness}
+            onNavigate={navigateReadiness}
+            checkpointBadge={
+              <>
+                <span className="font-semibold">当前工作稿</span>
+                {viewData.activeCheckpoint ? (
+                  <Badge tone="success">检查点 v{viewData.activeCheckpoint.versionNo}</Badge>
+                ) : (
+                  <Badge tone="warning">尚未形成检查点</Badge>
+                )}
+                <Badge tone={viewData.reviews.some((r) => !r.stale) ? "success" : "warning"}>
+                  审阅{viewData.reviews.some((r) => !r.stale) ? "最新" : "待更新"}
+                </Badge>
+                <Badge tone={viewData.packaging && !viewData.packaging.stale ? "success" : "warning"}>
+                  包装{viewData.packaging && !viewData.packaging.stale ? "最新" : "待更新"}
+                </Badge>
+                <Badge tone={viewData.variants.some((v) => !v.stale) ? "success" : "warning"}>
+                  平台稿{viewData.variants.some((v) => !v.stale) ? "最新" : "待更新"}
+                </Badge>
+              </>
+            }
+          />
         )}
         {data.restoredFromDraft && (
           <div className="ai-feedback mb-2 rounded-(--radius-control) border border-(--color-warning) bg-(--color-warning-soft) px-3 py-2 text-xs text-(--color-warning)">

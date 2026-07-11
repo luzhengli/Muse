@@ -1,4 +1,5 @@
 import type { TopicBrief } from "@/db/schema";
+import type { ReadinessFacts } from "@/lib/readiness";
 
 export interface WbVersion {
   id: number;
@@ -98,6 +99,8 @@ export interface WorkbenchData {
   variants: WbVariant[];
   assets: WbAsset[];
   brief: TopicBrief | null;
+  /** readiness 事实（服务端汇集；客户端在正文变化时用同一纯函数重算） */
+  readinessFacts: ReadinessFacts;
   activeCheckpoint: { id: number; versionNo: number } | null;
   /** 编辑器初始内容（最新版本或恢复的工作稿） */
   initialContentHtml: string;

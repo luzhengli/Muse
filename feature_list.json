@@ -222,8 +222,8 @@
       "name": "Readiness Gate and Stale Derivatives",
       "description": "在统一写作台按检查点、Brief、审阅 critical、包装、平台稿和要点证据六类事实计算成稿就绪；展示缺口与直达操作，禁止手动状态绕过，并保留且标记全部旧产物。",
       "dependencies": ["feat-022"],
-      "status": "not-started",
-      "evidence": ""
+      "status": "done",
+      "evidence": "2026-07-11：src/lib/readiness.ts 唯一领域状态计算（getReadinessFactsCore 汇集正文/检查点/Brief 完整与对齐/要点证据/引用有效性/当前 critical/包装/平台稿八类事实；computeReadiness 纯函数输出有序缺口+唯一 NextAction；assertPublishable 服务端发布校验），不读 articles.status。新增 articles.aligned_brief_fingerprint（幂等补列，NULL 不产生缺口），对齐事实三处写入（初稿确认/Brief 编辑前回填/显式确认按钮）。发布双重拦截：createPublishTask 拒绝+redirect 回显原因，executeTask 执行前再校验、旧稿任务置 failed。写作台 ReadinessStrip：状态 Badge+唯一主行动+阻塞原因/可跳过风险+全部待办分级列表+直达按钮；删除手动 updateArticleStatus，写作台头部撤下 status 徽章。bun test 103/103（readiness 15：纯函数组合/优先级/发布校验四类拒绝/事实汇集/对齐指纹三态/工作稿领先）。真实浏览器（文章 13/选题 19，验后清理）：空文→「从写下第一段开始」；输入即时变为「还差 1 步」；人工 critical→「处理严重问题」阻断、已处理即恢复；主行动直达平台版本页；新稿任务创建成功横幅；改正文后未固化拦截、保存 v3 后旧稿拦截（横幅+任务 failed 均写明原因）、重新派生后恢复可发布；Brief 修改→「查看创作说明并确认」→确认对齐即清除；刷新/服务器中断后正文与状态恢复；375px 首屏可见状态与唯一下一步、无横向溢出；控制台 0 error。typecheck/lint/build/DESIGN lint 全绿。"
     }
   ]
 }

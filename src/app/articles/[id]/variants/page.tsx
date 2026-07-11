@@ -18,10 +18,13 @@ export const dynamic = "force-dynamic";
 
 export default async function VariantsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ publishBlocked?: string; taskCreated?: string }>;
 }) {
   const { id } = await params;
+  const { publishBlocked, taskCreated } = await searchParams;
   const articleId = Number(id);
   const article = await db.query.articles.findFirst({
     where: eq(articles.id, articleId),
@@ -52,6 +55,23 @@ export default async function VariantsPage({
         topicTitle={topic?.title}
       />
       <ArticleTabs articleId={articleId} />
+
+      {publishBlocked && (
+        <div
+          role="alert"
+          className="ai-feedback rounded-(--radius-control) border border-(--color-danger) bg-(--color-danger-soft) px-3 py-2 text-sm text-(--color-danger)"
+        >
+          发布已被拦截：{publishBlocked}
+        </div>
+      )}
+      {taskCreated && (
+        <div
+          role="status"
+          className="ai-feedback rounded-(--radius-control) border border-(--color-success) bg-(--color-success-soft) px-3 py-2 text-sm text-(--color-success)"
+        >
+          发布任务已创建，可在发布中心跟踪状态。
+        </div>
+      )}
 
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <p className="text-sm text-(--color-muted)">

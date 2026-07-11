@@ -56,6 +56,7 @@ CREATE TABLE IF NOT EXISTS articles (
   title TEXT NOT NULL,
   summary TEXT NOT NULL DEFAULT '',
   cover_asset_id INTEGER,
+  aligned_brief_fingerprint TEXT,
   status TEXT NOT NULL DEFAULT 'draft',
   created_at INTEGER NOT NULL DEFAULT (unixepoch()),
   updated_at INTEGER NOT NULL DEFAULT (unixepoch())
@@ -227,6 +228,9 @@ export function compatibilityMigrationSql(columns: {
   }
   if (!columns.articles.includes("cover_asset_id")) {
     statements.push("ALTER TABLE articles ADD COLUMN cover_asset_id INTEGER");
+  }
+  if (!columns.articles.includes("aligned_brief_fingerprint")) {
+    statements.push("ALTER TABLE articles ADD COLUMN aligned_brief_fingerprint TEXT");
   }
   if (!columns.platformVariants.includes("source_version_id")) {
     statements.push(

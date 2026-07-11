@@ -75,18 +75,6 @@ export async function updateArticleTitle(articleId: number, title: string) {
   revalidatePath("/articles");
 }
 
-export async function updateArticleStatus(
-  articleId: number,
-  status: "draft" | "reviewing" | "packaged" | "ready" | "published",
-) {
-  await db
-    .update(articles)
-    .set({ status, updatedAt: nowUnix() })
-    .where(eq(articles.id, articleId));
-  revalidatePath(`/articles/${articleId}`);
-  revalidatePath("/articles");
-}
-
 /** 对选中文本执行扩写/改写/重组，返回结果由编辑器替换 */
 export async function rewriteText(
   text: string,

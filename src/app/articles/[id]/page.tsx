@@ -22,6 +22,7 @@ import { getAppSettings } from "@/lib/settings-store";
 import { isDerivativeStale } from "@/lib/revisions";
 import { normalizeTopicBrief } from "@/lib/briefs";
 import { getCitationStatesCore } from "@/lib/citations";
+import { getReadinessFactsCore } from "@/lib/readiness";
 
 export const dynamic = "force-dynamic";
 
@@ -97,6 +98,9 @@ export default async function ArticleEditorPage({
   const initial = resolveInitialContent(versions[0] ?? null, draft);
   const activeCheckpoint = versions.find((v) => v.contentHtml === initial.contentHtml) ?? null;
   const activeCheckpointId = activeCheckpoint?.id ?? null;
+
+  const readinessFacts = await getReadinessFactsCore(db, articleId);
+  if (!readinessFacts) notFound();
 
   const data: WorkbenchData = {
     articleId,
@@ -175,6 +179,7 @@ export default async function ArticleEditorPage({
       createdAt: a.createdAt,
     })),
     brief: topic ? normalizeTopicBrief(topic.brief, topic) : null,
+    readinessFacts,
     activeCheckpoint: activeCheckpoint
       ? { id: activeCheckpoint.id, versionNo: activeCheckpoint.versionNo }
       : null,
@@ -191,6 +196,7 @@ export default async function ArticleEditorPage({
           title={article.title}
           status={article.status}
           topicTitle={topic?.title}
+          hideStatus
         />
         <ArticleTabs articleId={articleId} />
       </div>

@@ -12,9 +12,11 @@ interface Props {
   title: string;
   status: string;
   topicTitle?: string | null;
+  /** 写作台由 readiness 展示状态（feat-023），隐藏 articles.status 徽章 */
+  hideStatus?: boolean;
 }
 
-export function ArticleHeader({ articleId, title, status, topicTitle }: Props) {
+export function ArticleHeader({ articleId, title, status, topicTitle, hideStatus }: Props) {
   const [value, setValue] = useState(title);
   const [pending, startTransition] = useTransition();
   const st = articleStatusLabel[status] ?? articleStatusLabel.draft;
@@ -38,7 +40,8 @@ export function ArticleHeader({ articleId, title, status, topicTitle }: Props) {
           }}
           className="min-w-0 flex-1 bg-transparent text-xl font-bold focus:outline-none"
         />
-        <Badge tone={st.tone}>{pending ? "保存中…" : st.text}</Badge>
+        {!hideStatus && <Badge tone={st.tone}>{pending ? "保存中…" : st.text}</Badge>}
+        {hideStatus && pending && <Badge tone="default">保存中…</Badge>}
         <Button
           size="sm"
           variant="ghost"

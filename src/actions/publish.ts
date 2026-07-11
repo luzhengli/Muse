@@ -1,12 +1,24 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { and, eq, lte, inArray } from "drizzle-orm";
 import { db, publishTasks, platformVariants, articles } from "@/db";
 import { getAdapter } from "@/lib/publish/adapters";
+import { assertPublishable, getReadinessFactsCore } from "@/lib/readiness";
 import { nowUnix } from "@/lib/utils";
 
-/** 创建定时发布任务 */
+/** 发布前的服务端强制校验：旧稿或严重问题一律拒绝（feat-023） */
+async function checkPublishable(variant: {
+  articleId: number;
+  sourceVersionId: number | null;
+}): Promise<{ ok: true } | { ok: false; reason: string }> {
+  const facts = await getReadinessFactsCore(db, variant.articleId);
+  if (!facts) return { ok: false, reason: "文章不存在，无法发布。" };
+  return assertPublishable(facts, variant.sourceVersionId);
+}
+
+/** 创建定时发布任务；被 readiness 拒绝时不落任务并回显原因 */
 export async function createPublishTask(formData: FormData) {
   const variantId = Number(formData.get("variantId"));
   const scheduledLocal = String(formData.get("scheduledAt") ?? "");
@@ -15,6 +27,12 @@ export async function createPublishTask(formData: FormData) {
     where: eq(platformVariants.id, variantId),
   });
   if (!variant) return;
+  const gate = await checkPublishable(variant);
+  if (!gate.ok) {
+    redirect(
+      `/articles/${variant.articleId}/variants?publishBlocked=${encodeURIComponent(gate.reason)}`,
+    );
+  }
   const scheduledAt = scheduledLocal
     ? Math.floor(new Date(scheduledLocal).getTime() / 1000)
     : nowUnix();
@@ -25,6 +43,7 @@ export async function createPublishTask(formData: FormData) {
     status: "pending",
   });
   revalidatePath("/publish");
+  redirect(`/articles/${variant.articleId}/variants?taskCreated=1`);
 }
 
 async function executeTask(taskId: number) {
@@ -39,6 +58,15 @@ async function executeTask(taskId: number) {
     await db
       .update(publishTasks)
       .set({ status: "failed", lastError: "平台版本已被删除" })
+      .where(eq(publishTasks.id, taskId));
+    return;
+  }
+  // 执行前再次校验 readiness：任务创建后正文可能已变化，旧稿保留但绝不发布
+  const gate = await checkPublishable(variant);
+  if (!gate.ok) {
+    await db
+      .update(publishTasks)
+      .set({ status: "failed", lastError: gate.reason })
       .where(eq(publishTasks.id, taskId));
     return;
   }

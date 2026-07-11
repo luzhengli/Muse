@@ -112,6 +112,12 @@ export const articles = sqliteTable("articles", {
   summary: text("summary").notNull().default(""),
   /** 包装台设置的封面图（本地资产） */
   coverAssetId: integer("cover_asset_id"),
+  /**
+   * 当前正文被确认对齐到的 Brief 指纹（briefFingerprint）。
+   * NULL = 从未记录（旧数据），readiness 不据此产生缺口，不伪造状态。
+   */
+  alignedBriefFingerprint: text("aligned_brief_fingerprint"),
+  /** 展示用途保留；决策一律走 lib/readiness 的事实计算（feat-023） */
   status: text("status", {
     enum: ["draft", "reviewing", "packaged", "ready", "published"],
   })
