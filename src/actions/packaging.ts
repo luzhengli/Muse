@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { desc, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import fs from "node:fs/promises";
 import path from "node:path";
 import {
@@ -15,24 +15,33 @@ import {
 import { aiPackaging } from "@/lib/ai";
 import type { AiActionResult } from "@/lib/ai";
 import { completedAiAction, runExclusiveAiAction } from "@/lib/ai/action";
+import { ensureActiveCheckpointCore } from "@/lib/revisions";
 
 /** 生成包装物料并与最新版本关联保存 */
-export async function generatePackaging(articleId: number): Promise<AiActionResult> {
+export async function generatePackaging(
+  articleId: number,
+  currentContentHtml?: string,
+): Promise<AiActionResult> {
   return runExclusiveAiAction(`packaging:article:${articleId}`, "generate-packaging", async () => {
     const article = await db.query.articles.findFirst({
       where: eq(articles.id, articleId),
     });
-    const version = await db.query.articleVersions.findFirst({
-      where: eq(articleVersions.articleId, articleId),
-      orderBy: desc(articleVersions.versionNo),
-    });
+    const checkpoint = await ensureActiveCheckpointCore(
+      db,
+      articleId,
+      currentContentHtml,
+      "包装前自动检查点",
+    );
+    const version = checkpoint
+      ? await db.query.articleVersions.findFirst({ where: eq(articleVersions.id, checkpoint.id) })
+      : null;
     if (!article || !version) {
       return { ok: false, message: "没有可用于包装的文章版本。", tone: "danger" };
     }
     const result = await aiPackaging(article.title, version.contentText);
     await db.insert(packagings).values({
       articleId,
-      versionId: version.id,
+      sourceVersionId: version.id,
       titleCandidates: result.data.titleCandidates,
       summary: result.data.summary,
       coverPrompt: result.data.coverPrompt,

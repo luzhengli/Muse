@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { desc, eq } from "drizzle-orm";
-import { db, articles, platformVariants, topics, type Platform } from "@/db";
+import { db, articles, articleVersions, platformVariants, topics, type Platform } from "@/db";
 import { generateVariant, updateVariant, deleteVariant } from "@/actions/variants";
 import { createPublishTask } from "@/actions/publish";
 import { ArticleHeader } from "@/components/article-header";
@@ -12,6 +12,7 @@ import { Input, Textarea, Label } from "@/components/ui/input";
 import { PLATFORM_IDS, PLATFORMS, platformName } from "@/lib/platforms";
 import { fmtTime } from "@/lib/utils";
 import { AiActionButton, AiResultTransition } from "@/components/ai-action";
+import { getActiveRevisionCore, isDerivativeStale } from "@/lib/revisions";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +36,12 @@ export default async function VariantsPage({
   const topic = article.topicId
     ? await db.query.topics.findFirst({ where: eq(topics.id, article.topicId) })
     : null;
+  const active = await getActiveRevisionCore(db, articleId);
+  const versionRows = await db
+    .select({ id: articleVersions.id, versionNo: articleVersions.versionNo })
+    .from(articleVersions)
+    .where(eq(articleVersions.articleId, articleId));
+  const versionNoById = new Map(versionRows.map((v) => [v.id, v.versionNo]));
 
   return (
     <div className="mx-auto max-w-5xl space-y-4">
@@ -84,6 +91,13 @@ export default async function VariantsPage({
                 <div className="flex flex-wrap items-center gap-2">
                   <CardTitle>{spec.name} 版本</CardTitle>
                   <Badge tone="primary">#{v.id}</Badge>
+                  <Badge
+                    tone={isDerivativeStale(v.sourceVersionId, active?.checkpoint?.id ?? null) ? "warning" : "success"}
+                  >
+                    {isDerivativeStale(v.sourceVersionId, active?.checkpoint?.id ?? null)
+                      ? "已过期"
+                      : `来源 v${versionNoById.get(v.sourceVersionId!) ?? "-"}`}
+                  </Badge>
                   <span className="text-xs text-(--color-muted)">
                     更新于 {fmtTime(v.updatedAt)}
                   </span>

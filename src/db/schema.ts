@@ -161,7 +161,7 @@ export const reviews = sqliteTable("reviews", {
   articleId: integer("article_id")
     .notNull()
     .references(() => articles.id, { onDelete: "cascade" }),
-  versionId: integer("version_id").references(() => articleVersions.id, {
+  sourceVersionId: integer("version_id").references(() => articleVersions.id, {
     onDelete: "set null",
   }),
   type: text("type", { enum: ["ai", "human"] }).notNull(),
@@ -206,7 +206,7 @@ export const packagings = sqliteTable("packagings", {
   articleId: integer("article_id")
     .notNull()
     .references(() => articles.id, { onDelete: "cascade" }),
-  versionId: integer("version_id").references(() => articleVersions.id, {
+  sourceVersionId: integer("version_id").references(() => articleVersions.id, {
     onDelete: "set null",
   }),
   titleCandidates: text("title_candidates", { mode: "json" })
@@ -246,6 +246,9 @@ export const platformVariants = sqliteTable("platform_variants", {
   articleId: integer("article_id")
     .notNull()
     .references(() => articles.id, { onDelete: "cascade" }),
+  sourceVersionId: integer("source_version_id").references(() => articleVersions.id, {
+    onDelete: "set null",
+  }),
   platform: text("platform", { enum: ["xiaohongshu", "x", "wechat"] }).notNull(),
   title: text("title").notNull(),
   content: text("content").notNull(),

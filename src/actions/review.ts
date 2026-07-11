@@ -17,6 +17,7 @@ import {
   completedAiAction,
   runExclusiveAiAction,
 } from "@/lib/ai/action";
+import { ensureActiveCheckpointCore } from "@/lib/revisions";
 
 interface PolishPreview {
   mode: "fragment" | "document";
@@ -27,16 +28,22 @@ interface PolishPreview {
 /** 对文章最新版本执行 AI 审阅 */
 export async function runAiReview(
   articleId: number,
+  currentContentHtml?: string,
   platformId?: string,
 ): Promise<AiActionResult> {
   return runExclusiveAiAction(
     `review:article:${articleId}:${platformId ?? "general"}`,
     "review-article",
     async () => {
-      const version = await db.query.articleVersions.findFirst({
-        where: eq(articleVersions.articleId, articleId),
-        orderBy: desc(articleVersions.versionNo),
-      });
+      const checkpoint = await ensureActiveCheckpointCore(
+        db,
+        articleId,
+        currentContentHtml,
+        "审阅前自动检查点",
+      );
+      const version = checkpoint
+        ? await db.query.articleVersions.findFirst({ where: eq(articleVersions.id, checkpoint.id) })
+        : null;
       if (!version) {
         return { ok: false, message: "没有可审阅的文章版本。", tone: "danger" };
       }
@@ -45,7 +52,7 @@ export async function runAiReview(
         .insert(reviews)
         .values({
           articleId,
-          versionId: version.id,
+          sourceVersionId: version.id,
           type: "ai",
           summary: `【${aiProvenance(result.meta)}】${result.data.summary}`,
         })
@@ -76,7 +83,7 @@ export async function runAiReviewFromForm(formData: FormData): Promise<AiActionR
   const articleId = Number(formData.get("articleId"));
   const platform = String(formData.get("platform") ?? "");
   if (!articleId) return { ok: false, message: "文章不存在。", tone: "danger" };
-  return runAiReview(articleId, platform || undefined);
+  return runAiReview(articleId, undefined, platform || undefined);
 }
 
 /** 人工审阅意见 */
@@ -84,21 +91,18 @@ export async function addHumanFinding(formData: FormData) {
   const articleId = Number(formData.get("articleId"));
   const suggestion = String(formData.get("suggestion") ?? "").trim();
   if (!articleId || !suggestion) return;
-  const version = await db.query.articleVersions.findFirst({
-    where: eq(articleVersions.articleId, articleId),
-    orderBy: desc(articleVersions.versionNo),
-  });
+  const checkpoint = await ensureActiveCheckpointCore(db, articleId, undefined, "人工审阅前自动检查点");
   // 复用或创建当前版本的人工审阅记录
   let review = await db.query.reviews.findFirst({
     where: eq(reviews.articleId, articleId),
     orderBy: desc(reviews.createdAt),
   });
-  if (!review || review.type !== "human" || review.versionId !== version?.id) {
+  if (!review || review.type !== "human" || review.sourceVersionId !== checkpoint?.id) {
     [review] = await db
       .insert(reviews)
       .values({
         articleId,
-        versionId: version?.id,
+        sourceVersionId: checkpoint?.id,
         type: "human",
         summary: "人工审阅",
       })
@@ -125,17 +129,36 @@ export async function addHumanFinding(formData: FormData) {
 export async function polishFinding(
   articleId: number,
   findingId: number,
+  currentContentHtml?: string,
 ): Promise<AiActionResult<PolishPreview>> {
   return runExclusiveAiAction<PolishPreview>(`polish:finding:${findingId}`, "polish-review-finding", async () => {
     const finding = await db.query.reviewFindings.findFirst({
       where: eq(reviewFindings.id, findingId),
     });
-    const version = await db.query.articleVersions.findFirst({
-      where: eq(articleVersions.articleId, articleId),
-      orderBy: desc(articleVersions.versionNo),
-    });
-    if (!finding || !version) {
+    const review = finding
+      ? await db.query.reviews.findFirst({ where: eq(reviews.id, finding.reviewId) })
+      : null;
+    const checkpoint = await ensureActiveCheckpointCore(
+      db,
+      articleId,
+      currentContentHtml,
+      "润色前自动检查点",
+    );
+    if (!finding || !review?.sourceVersionId || !checkpoint) {
       return { ok: false, message: "润色失败：没有可用版本。", tone: "danger" };
+    }
+    if (review.sourceVersionId !== checkpoint.id) {
+      return {
+        ok: false,
+        message: "这条意见来自旧版本，当前工作稿已变化。请重新审阅后再润色。",
+        tone: "warning",
+      };
+    }
+    const version = await db.query.articleVersions.findFirst({
+      where: eq(articleVersions.id, review.sourceVersionId),
+    });
+    if (!version) {
+      return { ok: false, message: "润色失败：来源版本已不可用。", tone: "danger" };
     }
 
     const quote = finding.quote.trim();

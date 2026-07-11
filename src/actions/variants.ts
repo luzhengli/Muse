@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { desc, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import {
   db,
   articles,
@@ -13,6 +13,7 @@ import { aiVariant } from "@/lib/ai";
 import type { AiActionResult } from "@/lib/ai";
 import { completedAiAction, runExclusiveAiAction } from "@/lib/ai/action";
 import { nowUnix } from "@/lib/utils";
+import { ensureActiveCheckpointCore } from "@/lib/revisions";
 
 /** 从内容母版派生平台版本 */
 export async function generateVariant(
@@ -26,16 +27,22 @@ export async function generateVariant(
       const article = await db.query.articles.findFirst({
         where: eq(articles.id, articleId),
       });
-      const version = await db.query.articleVersions.findFirst({
-        where: eq(articleVersions.articleId, articleId),
-        orderBy: desc(articleVersions.versionNo),
-      });
+      const checkpoint = await ensureActiveCheckpointCore(
+        db,
+        articleId,
+        undefined,
+        `派生${platform}前自动检查点`,
+      );
+      const version = checkpoint
+        ? await db.query.articleVersions.findFirst({ where: eq(articleVersions.id, checkpoint.id) })
+        : null;
       if (!article || !version) {
         return { ok: false, message: "没有可派生的文章版本。", tone: "danger" };
       }
       const result = await aiVariant(article.title, version.contentText, platform);
       await db.insert(platformVariants).values({
         articleId,
+        sourceVersionId: version.id,
         platform,
         title: result.data.title,
         content: result.data.content,

@@ -192,6 +192,38 @@
       ],
       "status": "done",
       "evidence": "2026-07-11：bun test 61/61（新增 settings 12 项：空/损坏/缺失字段/未知字段/越界单字段回退的 schema 兼容、设置>环境变量>默认的优先级解析、provider 决定默认模型、非法环境变量忽略、凭据状态不含密钥）。真实浏览器：/settings 四区块渲染，导航入口高亮；编辑器设置保存（字号 18/间隔 3000）→ 写作台实测 font-size 18px、行高 1.8、spellcheck=false；服务端 zod 校验拒绝越界字号并显示「字号范围 12-22」（原生 HTML 校验为第一道）；测试连接对真实 DeepSeek 成功（896ms）；动效偏好=始终减少 → html[data-motion=reduced]、page-transition animation none、interactive transition 0s，恢复默认后动画回归且表单值同步；mock 兜底关闭 + provider=anthropic（无密钥）→ 写作台 AI 改写显示明确报错「未配置真实 AI 密钥，且设置中已关闭 mock 兜底」且正文不变；/api/export 200 + attachment 头 + 18 表 + 无 api_key 字样；375px 设置页 scrollWidth=375 无溢出；控制台 0 error。配置优先级、密钥脱敏与安全边界记录于 progress.md 决策。typecheck/lint/build/DESIGN lint 全绿。"
+    },
+    {
+      "id": "feat-020",
+      "name": "Active Revision Contract",
+      "description": "统一当前工作稿到不可变检查点再到审阅、包装与平台适配的编排；内容相同时复用检查点；所有下游产物记录精确 sourceVersionId，工作台显示版本与过期状态，并修复旧版本审阅润色。",
+      "dependencies": ["feat-018", "feat-019"],
+      "status": "done",
+      "evidence": "2026-07-11：新增 revisions 契约与 6 项测试（当前内容选择、自动检查点、相同 HTML 去重、编辑器实时内容优先、过期判断、旧库补列且旧平台稿来源保持 null）；reviews/packagings 以原 version_id 映射 sourceVersionId，platform_variants 兼容新增 source_version_id；审阅润色只允许其来源版本仍为当前检查点。浏览器文章 8：未手动保存直接审阅创建 v2 且 review.version_id=20；重复审阅版本数仍为 2、两条审阅均指向 20；包装复用 v2；正文再次变化后工作台即时显示检查点缺失、审阅/包装待更新且旧意见 AI 润色禁用；跳转平台适配后从自动保存稿创建 v3，X 稿 source_version_id=21 且 UI 显示来源 v3。控制台 0 error/0 warning。"
+    },
+    {
+      "id": "feat-021",
+      "name": "Editable Creative Brief",
+      "description": "创作 Brief 可编辑持久化，覆盖读者、目标、主张、要点、角度、语气、平台、大纲和要点证据；旧 JSON 自动补默认；Brief 变化提示正文重新对齐，并提供先预览后确认的初稿或大纲改写入口。",
+      "dependencies": ["feat-020"],
+      "status": "not-started",
+      "evidence": ""
+    },
+    {
+      "id": "feat-022",
+      "name": "Evidence and Citation Loop",
+      "description": "把文章关联素材升级为可定位语料块的证据引用，支持搜索、复制、插入、持久化与 Markdown 往返；AI 事实审阅区分来源支持、缺失和冲突，并为素材或引用删除提供可理解降级。",
+      "dependencies": ["feat-021"],
+      "status": "not-started",
+      "evidence": ""
+    },
+    {
+      "id": "feat-023",
+      "name": "Readiness Gate and Stale Derivatives",
+      "description": "在统一写作台按检查点、Brief、审阅 critical、包装、平台稿和要点证据六类事实计算成稿就绪；展示缺口与直达操作，禁止手动状态绕过，并保留且标记全部旧产物。",
+      "dependencies": ["feat-022"],
+      "status": "not-started",
+      "evidence": ""
     }
   ]
 }

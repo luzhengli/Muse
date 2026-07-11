@@ -130,6 +130,7 @@ CREATE TABLE IF NOT EXISTS assets (
 CREATE TABLE IF NOT EXISTS platform_variants (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   article_id INTEGER NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
+  source_version_id INTEGER REFERENCES article_versions(id) ON DELETE SET NULL,
   platform TEXT NOT NULL,
   title TEXT NOT NULL,
   content TEXT NOT NULL,
@@ -196,3 +197,26 @@ CREATE INDEX IF NOT EXISTS idx_versions_article ON article_versions(article_id);
 CREATE INDEX IF NOT EXISTS idx_variants_article ON platform_variants(article_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON publish_tasks(status, scheduled_at);
 `;
+
+/** 根据现有列返回幂等兼容迁移；旧数据不伪造无法确认的来源版本。 */
+export function compatibilityMigrationSql(columns: {
+  articles: string[];
+  platformVariants: string[];
+}) {
+  const statements: string[] = [];
+  if (!columns.articles.includes("summary")) {
+    statements.push("ALTER TABLE articles ADD COLUMN summary TEXT NOT NULL DEFAULT ''");
+  }
+  if (!columns.articles.includes("cover_asset_id")) {
+    statements.push("ALTER TABLE articles ADD COLUMN cover_asset_id INTEGER");
+  }
+  if (!columns.platformVariants.includes("source_version_id")) {
+    statements.push(
+      "ALTER TABLE platform_variants ADD COLUMN source_version_id INTEGER REFERENCES article_versions(id) ON DELETE SET NULL",
+    );
+  }
+  statements.push(
+    "CREATE INDEX IF NOT EXISTS idx_variants_source_version ON platform_variants(source_version_id)",
+  );
+  return statements;
+}

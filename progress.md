@@ -1,5 +1,25 @@
 # Session Progress Log
 
+## Muse v0.3 — 可信创作闭环（进行中）
+
+**Last Updated:** 2026-07-11
+**Active Feature:** feat-020 — Active Revision Contract
+
+### feat-020 实现前契约
+
+- **数据模型**：`article_drafts` 继续承载唯一可变工作稿，`article_versions` 继续承载不可变内容快照；不新增正文模型。`reviews.version_id` 与 `packagings.version_id` 在 TypeScript 层改名为 `sourceVersionId` 但沿用原列，`platform_variants` 通过启动兼容迁移新增可空 `source_version_id`。
+- **状态转换**：下游操作收到编辑器当前 HTML 时先保存工作稿，再查找同 article、同 `content_html` 的既有版本；命中则复用并同步 draft 基线，未命中才创建下一版本。下游产物只引用该检查点。正文不同于来源检查点时产物为过期；旧平台稿无来源版本时按“来源未知 / 已过期”降级。
+- **失败路径**：文章不存在或没有工作稿/版本时明确失败且不调用 AI；检查点建立失败不写下游产物；旧审阅润色只允许在其来源版本仍是当前检查点时执行，否则要求重新审阅，禁止对最新版本或旧引用片段静默改写。
+- **兼容策略**：启动时以 `PRAGMA table_info` 幂等补列，不删除、不覆盖历史数据；既有 review/packaging 精确来源不变，既有 variant 保留但来源为空，不伪造追溯关系。
+- **验证门槛**：覆盖版本选择、相同内容去重、draft 基线同步、过期判断和旧库补列单测；再跑 typecheck、lint 与针对性浏览器验证后，才把 feat-020 标记 done。
+
+### feat-020 完成证据
+
+- **实现**：新增 `src/lib/revisions.ts`，所有下游动作统一执行「实时编辑器/自动保存工作稿 → 内容去重检查点 → sourceVersionId」；`reviews`、`packagings` 沿用旧 `version_id`，`platform_variants` 兼容新增 `source_version_id`。工作台活动修订条与各结果 Badge 即时显示最新/过期；旧审阅润色在来源过期时禁用且服务端二次拒绝。
+- **测试**：`bun test tests/revisions.test.ts tests/drafts.test.ts` 16/16；`bun run typecheck`、`bun run lint` 通过。旧库真实迁移测试确认旧平台稿保留且 `source_version_id=null`，不会伪造来源。
+- **浏览器**：文章 8 未手动保存直接审阅创建 v2；重复审阅复用 v2；包装关联 v2；继续编辑后审阅/包装立即过期；从自动保存稿派生 X 版创建 v3 且 variant 来源为 v3。控制台 0 error/0 warning。
+- **修复的基线兼容缺陷**：首次浏览器启动发现旧库会在补 `source_version_id` 前创建索引而 500；索引创建已移到兼容迁移之后，并新增回归测试。
+
 ## Current State
 
 **Last Updated:** 2026-07-11

@@ -3,7 +3,7 @@ import { drizzle } from "drizzle-orm/better-sqlite3";
 import fs from "node:fs";
 import path from "node:path";
 import * as schema from "./schema";
-import { BOOTSTRAP_SQL } from "./bootstrap";
+import { BOOTSTRAP_SQL, compatibilityMigrationSql } from "./bootstrap";
 
 export const DATA_DIR = path.resolve(process.env.MUSE_DATA_DIR ?? "./data");
 export const UPLOAD_DIR = path.join(DATA_DIR, "uploads");
@@ -18,15 +18,18 @@ function createDb() {
   sqlite.pragma("journal_mode = WAL");
   sqlite.pragma("foreign_keys = ON");
   sqlite.exec(BOOTSTRAP_SQL);
-  // 旧库兼容：文章元信息新增列
+  // 旧库兼容：只补列，不覆盖或猜测历史数据
   const articleCols = sqlite
     .prepare("PRAGMA table_info(articles)")
     .all() as { name: string }[];
-  if (!articleCols.some((c) => c.name === "summary")) {
-    sqlite.exec("ALTER TABLE articles ADD COLUMN summary TEXT NOT NULL DEFAULT ''");
-  }
-  if (!articleCols.some((c) => c.name === "cover_asset_id")) {
-    sqlite.exec("ALTER TABLE articles ADD COLUMN cover_asset_id INTEGER");
+  const variantCols = sqlite
+    .prepare("PRAGMA table_info(platform_variants)")
+    .all() as { name: string }[];
+  for (const statement of compatibilityMigrationSql({
+    articles: articleCols.map((c) => c.name),
+    platformVariants: variantCols.map((c) => c.name),
+  })) {
+    sqlite.exec(statement);
   }
   return { sqlite, db: drizzle(sqlite, { schema }) };
 }

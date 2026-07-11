@@ -84,7 +84,7 @@ export default async function PackagingPage({
             <CardHeader>
               <CardTitle>标题候选</CardTitle>
               <CardDescription>
-                关联版本 v{latestPack.versionId ? versionNo.get(latestPack.versionId) ?? "-" : "-"} ·{" "}
+                关联版本 v{latestPack.sourceVersionId ? versionNo.get(latestPack.sourceVersionId) ?? "-" : "-"} ·{" "}
                 {fmtTime(latestPack.createdAt)}
               </CardDescription>
             </CardHeader>

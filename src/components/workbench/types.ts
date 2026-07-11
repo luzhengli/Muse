@@ -23,6 +23,9 @@ export interface WbReview {
   type: string;
   summary: string;
   createdAt: number;
+  sourceVersionId: number | null;
+  sourceVersionNo: number | null;
+  stale: boolean;
   findings: WbFinding[];
 }
 
@@ -34,7 +37,18 @@ export interface WbPackaging {
   imagePrompts: string[];
   cards: { heading: string; body: string }[];
   versionNo: number | null;
+  sourceVersionId: number | null;
+  stale: boolean;
   createdAt: number;
+}
+
+export interface WbVariant {
+  id: number;
+  platform: string;
+  sourceVersionId: number | null;
+  sourceVersionNo: number | null;
+  stale: boolean;
+  updatedAt: number;
 }
 
 export interface WbAsset {
@@ -62,8 +76,10 @@ export interface WorkbenchData {
   citations: WbCitation[];
   reviews: WbReview[]; // 按时间倒序
   packaging: WbPackaging | null;
+  variants: WbVariant[];
   assets: WbAsset[];
   brief: TopicBrief | null;
+  activeCheckpoint: { id: number; versionNo: number } | null;
   /** 编辑器初始内容（最新版本或恢复的工作稿） */
   initialContentHtml: string;
   /** 本次加载是否从自动保存的工作稿恢复 */

@@ -10,6 +10,7 @@ import {
   reviews,
   reviewFindings,
   packagings,
+  platformVariants,
   assets,
 } from "@/db";
 import { ArticleHeader } from "@/components/article-header";
@@ -18,6 +19,7 @@ import { Workbench } from "@/components/workbench/workbench";
 import type { WorkbenchData } from "@/components/workbench/types";
 import { getDraft, resolveInitialContent } from "@/lib/drafts";
 import { getAppSettings } from "@/lib/settings-store";
+import { isDerivativeStale } from "@/lib/revisions";
 
 export const dynamic = "force-dynamic";
 
@@ -68,9 +70,14 @@ export default async function ArticleEditorPage({
     .select()
     .from(packagings)
     .where(eq(packagings.articleId, articleId))
-    .orderBy(desc(packagings.createdAt))
-    .limit(1);
+    .orderBy(desc(packagings.createdAt));
   const latestPack = packs[0];
+
+  const variantRows = await db
+    .select()
+    .from(platformVariants)
+    .where(eq(platformVariants.articleId, articleId))
+    .orderBy(desc(platformVariants.updatedAt));
 
   const assetRows = await db
     .select()
@@ -84,6 +91,8 @@ export default async function ArticleEditorPage({
 
   const draft = await getDraft(db, articleId);
   const initial = resolveInitialContent(versions[0] ?? null, draft);
+  const activeCheckpoint = versions.find((v) => v.contentHtml === initial.contentHtml) ?? null;
+  const activeCheckpointId = activeCheckpoint?.id ?? null;
 
   const data: WorkbenchData = {
     articleId,
@@ -102,6 +111,9 @@ export default async function ArticleEditorPage({
       type: r.type,
       summary: r.summary,
       createdAt: r.createdAt,
+      sourceVersionId: r.sourceVersionId,
+      sourceVersionNo: r.sourceVersionId ? (versionNoById.get(r.sourceVersionId) ?? null) : null,
+      stale: isDerivativeStale(r.sourceVersionId, activeCheckpointId),
       findings: findingRows
         .filter((f) => f.reviewId === r.id)
         .map((f) => ({
@@ -121,12 +133,22 @@ export default async function ArticleEditorPage({
           coverPrompt: latestPack.coverPrompt,
           imagePrompts: latestPack.imagePrompts,
           cards: latestPack.cardStructure?.cards ?? [],
-          versionNo: latestPack.versionId
-            ? (versionNoById.get(latestPack.versionId) ?? null)
+          versionNo: latestPack.sourceVersionId
+            ? (versionNoById.get(latestPack.sourceVersionId) ?? null)
             : null,
+          sourceVersionId: latestPack.sourceVersionId,
+          stale: isDerivativeStale(latestPack.sourceVersionId, activeCheckpointId),
           createdAt: latestPack.createdAt,
         }
       : null,
+    variants: variantRows.map((v) => ({
+      id: v.id,
+      platform: v.platform,
+      sourceVersionId: v.sourceVersionId,
+      sourceVersionNo: v.sourceVersionId ? (versionNoById.get(v.sourceVersionId) ?? null) : null,
+      stale: isDerivativeStale(v.sourceVersionId, activeCheckpointId),
+      updatedAt: v.updatedAt,
+    })),
     assets: assetRows.map((a) => ({
       id: a.id,
       kind: a.kind,
@@ -135,6 +157,9 @@ export default async function ArticleEditorPage({
       createdAt: a.createdAt,
     })),
     brief: topic?.brief ?? null,
+    activeCheckpoint: activeCheckpoint
+      ? { id: activeCheckpoint.id, versionNo: activeCheckpoint.versionNo }
+      : null,
     initialContentHtml: initial.contentHtml,
     restoredFromDraft: initial.restoredFromDraft,
     editorPrefs: getAppSettings().editor,

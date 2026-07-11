@@ -19,6 +19,7 @@ import { ReviewPanel } from "./review-panel";
 import { PackagingPanel } from "./packaging-panel";
 import { VersionPanel } from "./version-panel";
 import { MaterialsPanel } from "./materials-panel";
+import { Badge } from "@/components/ui/badge";
 
 type Tab = "review" | "packaging" | "versions" | "materials";
 
@@ -41,10 +42,14 @@ const TABS: { id: Tab; label: string; hint?: (d: WorkbenchData) => number }[] = 
 export function Workbench({ data }: { data: WorkbenchData }) {
   const [tab, setTab] = useState<Tab>("review");
   const [focused, setFocused] = useState(data.editorPrefs.defaultFocusMode);
+  const [revisionDirty, setRevisionDirty] = useState(false);
   const editorRef = useRef<Editor | null>(null);
   const pickImageRef = useRef<() => void>(() => {});
   const slashBus = useMemo(() => new SlashMenuBus(), []);
   const latest = data.versions[0];
+  const activeCheckpointHtml = data.activeCheckpoint
+    ? data.versions.find((version) => version.id === data.activeCheckpoint?.id)?.contentHtml
+    : null;
 
   async function uploadAndInsert(files: File[], pos?: number) {
     const editor = editorRef.current;
@@ -79,6 +84,9 @@ export function Workbench({ data }: { data: WorkbenchData }) {
     extensions,
     content: data.initialContentHtml,
     immediatelyRender: false,
+    onUpdate: ({ editor: updatedEditor }) => {
+      setRevisionDirty(updatedEditor.getHTML() !== activeCheckpointHtml);
+    },
     editorProps: {
       attributes: {
         spellcheck: data.editorPrefs.spellcheck ? "true" : "false",
@@ -128,6 +136,21 @@ export function Workbench({ data }: { data: WorkbenchData }) {
   });
   editorRef.current = editor;
 
+  useEffect(() => {
+    if (editor) setRevisionDirty(editor.getHTML() !== activeCheckpointHtml);
+  }, [editor, activeCheckpointHtml]);
+
+  const viewData = useMemo<WorkbenchData>(() => {
+    if (!revisionDirty) return data;
+    return {
+      ...data,
+      activeCheckpoint: null,
+      reviews: data.reviews.map((review) => ({ ...review, stale: true })),
+      packaging: data.packaging ? { ...data.packaging, stale: true } : null,
+      variants: data.variants.map((variant) => ({ ...variant, stale: true })),
+    };
+  }, [data, revisionDirty]);
+
   const { state: saveState, setBaseline, flush } = useAutosave(
     editor,
     data.articleId,
@@ -158,6 +181,25 @@ export function Workbench({ data }: { data: WorkbenchData }) {
       )}
     >
       <div className={cn(focused && "mx-auto w-full max-w-3xl")}>
+        {!focused && (
+          <div className="mb-2 flex flex-wrap items-center gap-1.5 rounded-(--radius-control) border border-(--color-border) bg-(--color-surface) px-3 py-2 text-xs">
+            <span className="font-semibold">当前工作稿</span>
+            {viewData.activeCheckpoint ? (
+              <Badge tone="success">检查点 v{viewData.activeCheckpoint.versionNo}</Badge>
+            ) : (
+              <Badge tone="warning">尚未形成检查点</Badge>
+            )}
+            <Badge tone={viewData.reviews.some((r) => !r.stale) ? "success" : "warning"}>
+              审阅{viewData.reviews.some((r) => !r.stale) ? "最新" : "待更新"}
+            </Badge>
+            <Badge tone={viewData.packaging && !viewData.packaging.stale ? "success" : "warning"}>
+              包装{viewData.packaging && !viewData.packaging.stale ? "最新" : "待更新"}
+            </Badge>
+            <Badge tone={viewData.variants.some((v) => !v.stale) ? "success" : "warning"}>
+              平台稿{viewData.variants.some((v) => !v.stale) ? "最新" : "待更新"}
+            </Badge>
+          </div>
+        )}
         {data.restoredFromDraft && (
           <div className="ai-feedback mb-2 rounded-(--radius-control) border border-(--color-warning) bg-(--color-warning-soft) px-3 py-2 text-xs text-(--color-warning)">
             已恢复最近一次自动保存的工作稿（比最新版本新）。如需回到某个版本，请在「版本」面板恢复。
@@ -181,7 +223,7 @@ export function Workbench({ data }: { data: WorkbenchData }) {
         <div className="min-w-0">
           <div className="flex gap-1 rounded-t-(--radius-card) border border-b-0 border-(--color-border) bg-(--color-surface) p-1.5">
             {TABS.map((t) => {
-              const count = t.hint?.(data);
+              const count = t.hint?.(viewData);
               return (
                 <button
                   key={t.id}
@@ -202,10 +244,10 @@ export function Workbench({ data }: { data: WorkbenchData }) {
           </div>
           <div className="overflow-auto rounded-b-(--radius-card) border border-(--color-border) bg-(--color-surface) p-3 lg:max-h-[calc(100vh-14rem)]">
             <div key={tab} className="panel-transition">
-              {tab === "review" && <ReviewPanel editor={editor} data={data} />}
-              {tab === "packaging" && <PackagingPanel editor={editor} data={data} />}
-              {tab === "versions" && <VersionPanel data={data} />}
-              {tab === "materials" && <MaterialsPanel data={data} />}
+              {tab === "review" && <ReviewPanel editor={editor} data={viewData} />}
+              {tab === "packaging" && <PackagingPanel editor={editor} data={viewData} />}
+              {tab === "versions" && <VersionPanel data={viewData} />}
+              {tab === "materials" && <MaterialsPanel data={viewData} />}
             </div>
           </div>
         </div>

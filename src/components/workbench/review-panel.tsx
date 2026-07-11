@@ -51,7 +51,7 @@ export function ReviewPanel({
     setFeedback(null);
     startPolishing(async () => {
       try {
-        const res = await polishFinding(data.articleId, finding.id);
+        const res = await polishFinding(data.articleId, finding.id, editor?.getHTML());
         setFeedback(res);
         if (res.ok && res.data) {
           setPolish({ findingId: finding.id, ...res.data });
@@ -71,7 +71,11 @@ export function ReviewPanel({
     setFeedback(null);
     startRunning(async () => {
       try {
-        const result = await runAiReview(data.articleId, platform || undefined);
+        const result = await runAiReview(
+          data.articleId,
+          editor?.getHTML(),
+          platform || undefined,
+        );
         setFeedback(result);
       } catch {
         setFeedback({ ok: false, message: "审阅请求未完成，请重试。", tone: "danger" });
@@ -122,7 +126,7 @@ export function ReviewPanel({
       {/* 执行 AI 审阅 */}
       <div className="space-y-2 rounded-(--radius-control) border border-(--color-border) p-2.5">
         <div className="text-xs font-semibold">
-          AI 审阅（最新版本 v{data.versions[0]?.versionNo ?? "-"}）
+          AI 审阅（当前检查点 v{data.activeCheckpoint?.versionNo ?? "待创建"}）
         </div>
         <div className="flex gap-1.5">
           <Select
@@ -143,7 +147,7 @@ export function ReviewPanel({
               "ai-action-trigger",
               running && "ai-action-pending disabled:opacity-100",
             )}
-            disabled={busy || !data.versions.length}
+            disabled={busy || !editor}
             aria-busy={running}
             onClick={handleReview}
           >
@@ -209,6 +213,9 @@ export function ReviewPanel({
               {r.type === "ai" ? "🤖 AI 审阅" : "👤 人工审阅"}
             </span>
             {fmtTime(r.createdAt)}
+            <Badge tone={r.stale ? "warning" : "success"}>
+              {r.stale ? "已过期" : `当前 v${r.sourceVersionNo ?? "-"}`}
+            </Badge>
           </div>
           {r.summary && (
             <p className="text-xs leading-relaxed text-(--color-muted)">{r.summary}</p>
@@ -250,7 +257,7 @@ export function ReviewPanel({
                         polishing && polishingId === f.id &&
                           "ai-action-pending disabled:opacity-100",
                       )}
-                      disabled={busy}
+                      disabled={busy || r.stale}
                       aria-busy={polishing && polishingId === f.id}
                       onClick={() => handlePolish(f)}
                     >
