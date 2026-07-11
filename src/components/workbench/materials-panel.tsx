@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { WorkbenchData } from "./types";
-import { platformName } from "@/lib/platforms";
+import { BriefEditor } from "@/components/brief-editor";
 
 export function MaterialsPanel({ data }: { data: WorkbenchData }) {
   return (
@@ -28,24 +28,17 @@ export function MaterialsPanel({ data }: { data: WorkbenchData }) {
         ))}
       </div>
 
-      {data.brief && (
-        <div className="space-y-1 rounded-(--radius-control) bg-(--color-muted-bg) p-2.5 text-[11px] leading-relaxed text-(--color-muted)">
-          <div className="text-xs font-semibold text-(--color-foreground)">创作 Brief</div>
-          <div>读者：{data.brief.audience}</div>
-          <div>语气：{data.brief.tone}</div>
-          <div>平台：{data.brief.platforms.map(platformName).join("、")}</div>
-          <div>要点：{data.brief.keyPoints.join("；")}</div>
-          {data.brief.outline.length > 0 && (
-            <div>
-              大纲：
-              <ol className="list-decimal pl-4">
-                {data.brief.outline.map((o, i) => (
-                  <li key={i}>{o}</li>
-                ))}
-              </ol>
-            </div>
-          )}
-        </div>
+      {data.topicId && data.brief && (
+        <BriefEditor
+          topicId={data.topicId}
+          initialBrief={data.brief}
+          materials={data.citations.map((citation) => ({
+            id: citation.materialId,
+            title: citation.title,
+          }))}
+          hasArticle
+          compact
+        />
       )}
     </div>
   );

@@ -206,8 +206,8 @@
       "name": "Editable Creative Brief",
       "description": "创作 Brief 可编辑持久化，覆盖读者、目标、主张、要点、角度、语气、平台、大纲和要点证据；旧 JSON 自动补默认；Brief 变化提示正文重新对齐，并提供先预览后确认的初稿或大纲改写入口。",
       "dependencies": ["feat-020"],
-      "status": "not-started",
-      "evidence": ""
+      "status": "done",
+      "evidence": "2026-07-11：TopicBrief JSON 增量补 objective/coreClaim/evidence，normalizeTopicBrief 兼容旧 JSON 与直接传入的 Topic 字段；6 项单测覆盖旧数据默认、两类选题 fallback、要点证据保留、必填完整性和 Brief 指纹。选题卡与写作台素材面板共用 BriefEditor；AI Brief 与初稿均先预览，初稿预览绑定 Brief 指纹，Brief 变化后服务端拒绝旧预览。真实浏览器完成选题创建、完整 Brief 编辑/持久化、初稿预览与确认：创建文章 10/v1；工作台回显全部字段并显示正文重新对齐提示，修改 Brief 后文章版本数仍为 1、正文长度仍为 1105。375/768/1280px 均无横向溢出；控制台无应用错误（仅浏览器请求缺失 favicon.ico 的既有 404）。验收数据已清理。bun test tests 73/73、typecheck、lint、build、DESIGN lint 全绿。"
     },
     {
       "id": "feat-022",

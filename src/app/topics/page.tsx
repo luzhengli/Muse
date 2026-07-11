@@ -1,10 +1,8 @@
 import Link from "next/link";
 import { desc, inArray } from "drizzle-orm";
-import { db, topics, materials, collections, type Topic } from "@/db";
+import { db, topics, materials, collections, articles, type Topic } from "@/db";
 import {
   generateTopicsFromCollection,
-  generateBriefAction,
-  createDraftFromTopic,
   createManualTopic,
   deleteTopic,
 } from "@/actions/topics";
@@ -14,13 +12,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input, Textarea, Select } from "@/components/ui/input";
 import { ListFilter } from "@/components/list-filter";
 import { Timeline } from "@/components/timeline";
-import {
-  AiActionButton,
-  AiActionForm,
-  AiResultTransition,
-} from "@/components/ai-action";
+import { AiActionForm, AiResultTransition } from "@/components/ai-action";
+import { BriefEditor } from "@/components/brief-editor";
 import { PLATFORM_IDS, platformName } from "@/lib/platforms";
 import { groupByDay, inDateRange, parseDateRange } from "@/lib/utils";
+import { normalizeTopicBrief } from "@/lib/briefs";
 
 export const dynamic = "force-dynamic";
 
@@ -76,9 +72,17 @@ export default async function TopicsPage({
         .where(inArray(materials.id, allMaterialIds))
     : [];
   const matTitle = new Map(mats.map((m) => [m.id, m.title]));
+  const articleRows = rows.length
+    ? await db
+        .select({ topicId: articles.topicId })
+        .from(articles)
+        .where(inArray(articles.topicId, rows.map((row) => row.id)))
+    : [];
+  const articleTopicIds = new Set(articleRows.map((row) => row.topicId));
 
   function renderTopicCard(t: Topic) {
     const st = statusLabel[t.status];
+    const brief = normalizeTopicBrief(t.brief, t);
     return (
       <Card key={t.id}>
               <CardHeader>
@@ -113,36 +117,14 @@ export default async function TopicsPage({
                     ))}
                   </div>
                 )}
-                {t.brief && (
-                  <div className="rounded-(--radius-control) bg-(--color-muted-bg) p-3 text-xs leading-relaxed">
-                    <div className="mb-1 font-semibold">创作 Brief</div>
-                    <div>读者：{t.brief.audience}</div>
-                    <div>语气：{t.brief.tone}</div>
-                    <div>平台：{t.brief.platforms.map(platformName).join("、")}</div>
-                    <div className="mt-1">
-                      大纲：
-                      <ol className="list-decimal pl-4">
-                        {t.brief.outline.map((o, i) => (
-                          <li key={i}>{o}</li>
-                        ))}
-                      </ol>
-                    </div>
-                  </div>
-                )}
+                <BriefEditor
+                  topicId={t.id}
+                  initialBrief={brief}
+                  materials={t.materialIds.map((id) => ({ id, title: matTitle.get(id) ?? `素材#${id}` }))}
+                  hasArticle={articleTopicIds.has(t.id)}
+                  compact
+                />
                 <div className="flex gap-2">
-                  <AiActionButton
-                    action={generateBriefAction.bind(null, t.id)}
-                    label={t.brief ? "重新生成 Brief" : "生成创作 Brief"}
-                    pendingLabel="Brief 生成中…"
-                    size="sm"
-                    variant="secondary"
-                  />
-                  <AiActionButton
-                    action={createDraftFromTopic.bind(null, t.id)}
-                    label="生成初稿 → 写作台"
-                    pendingLabel="初稿生成中…"
-                    size="sm"
-                  />
                   <form
                     action={async () => {
                       "use server";

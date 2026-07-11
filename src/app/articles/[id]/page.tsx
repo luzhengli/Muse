@@ -20,6 +20,7 @@ import type { WorkbenchData } from "@/components/workbench/types";
 import { getDraft, resolveInitialContent } from "@/lib/drafts";
 import { getAppSettings } from "@/lib/settings-store";
 import { isDerivativeStale } from "@/lib/revisions";
+import { normalizeTopicBrief } from "@/lib/briefs";
 
 export const dynamic = "force-dynamic";
 
@@ -96,6 +97,7 @@ export default async function ArticleEditorPage({
 
   const data: WorkbenchData = {
     articleId,
+    topicId: article.topicId,
     title: article.title,
     summary: article.summary,
     coverAssetId: article.coverAssetId,
@@ -156,7 +158,7 @@ export default async function ArticleEditorPage({
       filePath: a.filePath,
       createdAt: a.createdAt,
     })),
-    brief: topic?.brief ?? null,
+    brief: topic ? normalizeTopicBrief(topic.brief, topic) : null,
     activeCheckpoint: activeCheckpoint
       ? { id: activeCheckpoint.id, versionNo: activeCheckpoint.versionNo }
       : null,

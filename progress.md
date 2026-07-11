@@ -20,6 +20,23 @@
 - **浏览器**：文章 8 未手动保存直接审阅创建 v2；重复审阅复用 v2；包装关联 v2；继续编辑后审阅/包装立即过期；从自动保存稿派生 X 版创建 v3 且 variant 来源为 v3。控制台 0 error/0 warning。
 - **修复的基线兼容缺陷**：首次浏览器启动发现旧库会在补 `source_version_id` 前创建索引而 500；索引创建已移到兼容迁移之后，并新增回归测试。
 
+### feat-021 实现前契约
+
+- **数据模型**：保持旧 `TopicBrief.keyPoints: string[]`、`outline: string[]` 与现有 topic JSON 列；增量补 `objective`、`coreClaim`、逐要点 `evidence[]`。`normalizeTopicBrief` 是唯一兼容边界，旧 JSON 自动补默认，不做破坏性迁移。
+- **状态转换**：编辑 Brief 只更新 topic.brief；若已有文章，返回“正文可能需要重新对齐”提示但不写正文。AI 生成 Brief 先返回预览，确认应用到表单后仍需保存；AI 初稿先返回 HTML 预览，确认后才新建文章或追加不可变文章版本。
+- **失败路径**：未保存的 Brief 禁止生成初稿预览；Brief/预览无效时不写库；放弃预览不改变 Brief、工作稿或版本；所有 pending/error/source 继续沿用通用 AI 反馈。
+- **兼容策略**：旧 Brief 核心主张默认取首个 keyPoint；新增证据映射按 keyPoint 文本保留，删除或改名的要点不会错误继承旧证据。
+- **验证门槛**：旧 JSON 默认、证据映射、必填完整性单测；topics 与写作台浏览器验证编辑持久化、刷新、正文不覆盖、初稿预览/放弃/确认；typecheck、lint 后方可标记 done。
+
+### feat-021 完成证据
+
+- **实现**：`normalizeTopicBrief` 为旧 JSON 补 `objective/coreClaim/evidence`；共享 `BriefEditor` 同时进入选题卡和写作台素材面板。所有字段可编辑，逐要点可勾选素材或“无需引用”。已有正文时常驻重新对齐提示，保存 Brief 不写正文。
+- **安全 AI 流**：AI Brief 只返回预览，应用到表单后仍需显式保存；AI 新初稿只返回 HTML 预览，确认后才创建文章或通过 `saveVersionCore` 追加版本，放弃不写库。
+- **测试**：`tests/briefs.test.ts` 6/6（含旧 JSON、缺失 Brief、直接 Topic 字段 fallback、证据保留、必填判断、指纹过期）；全套 `bun test tests` 73/73，typecheck、lint、build、DESIGN lint 全绿。
+- **浏览器**：一次性 topic 18 完成完整 Brief 编辑与持久化，真实 AI 初稿预览在确认前不写库，确认后创建 article 10/v1（版本备注记录真实 AI 来源）。写作台素材面板回显读者、目标、主张、角度、语气、平台、大纲与“无需引用”；已有正文时显示“可能需重新对齐”，保存修改后仍为 1 个版本、正文长度仍为 1105，证明不会自动覆盖正文。
+- **响应式与健康**：写作台在 375/768/1280px 的 `scrollWidth` 分别等于视口宽度，无横向溢出；控制台无应用错误或警告，唯一错误为开发环境请求缺失 `favicon.ico` 的既有 404。验收 topic/article 已按精确 ID 清理。
+- **安全边界**：初稿确认仍由 Brief 指纹进行服务端过期校验；所有 AI 产物先预览、覆盖性写入需显式确认。feat-022 尚未开始，按用户指定在其正式实现前停止。
+
 ## Current State
 
 **Last Updated:** 2026-07-11

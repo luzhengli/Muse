@@ -21,6 +21,15 @@ import {
 } from "@/lib/ai/action";
 import type { AiActionResult, AiRunMeta } from "@/lib/ai";
 import { htmlToText } from "@/lib/utils";
+import { briefFingerprint, normalizeTopicBrief } from "@/lib/briefs";
+import { saveVersionCore } from "@/lib/drafts";
+
+export interface BriefDraftPreview {
+  title: string;
+  contentHtml: string;
+  sourceLabel: string;
+  briefFingerprint: string;
+}
 
 async function loadMaterialInputs(ids: number[]): Promise<MaterialInput[]> {
   if (!ids.length) return [];
@@ -105,21 +114,119 @@ export async function createManualTopic(formData: FormData) {
 }
 
 /** 把选题卡片扩展为创作 brief */
-export async function generateBriefAction(topicId: number): Promise<AiActionResult> {
+export async function generateBriefAction(
+  topicId: number,
+): Promise<AiActionResult<TopicBrief>> {
   return runExclusiveAiAction(`brief:topic:${topicId}`, "generate-brief", async () => {
     const topic = await db.query.topics.findFirst({ where: eq(topics.id, topicId) });
     if (!topic) return { ok: false, message: "选题不存在。", tone: "danger" };
     const inputs = await loadMaterialInputs(topic.materialIds);
     const result = await aiBrief(topic, inputs);
-    const brief: TopicBrief = { ...result.data, citedMaterialIds: topic.materialIds };
-    await db
-      .update(topics)
-      .set({ brief, status: "briefed" })
-      .where(eq(topics.id, topicId));
-    revalidatePath("/topics");
-    revalidatePath(`/topics/${topicId}`);
-    return completedAiAction(result, "创作 Brief 已生成。");
+    const brief = normalizeTopicBrief(
+      { ...result.data, citedMaterialIds: topic.materialIds },
+      topic,
+    );
+    return completedAiAction(
+      result,
+      "创作 Brief 预览已生成，确认保存后才会写入。",
+      brief,
+    );
   });
+}
+
+export async function saveTopicBrief(
+  topicId: number,
+  input: TopicBrief,
+): Promise<AiActionResult<{ hasArticle: boolean }>> {
+  const topic = await db.query.topics.findFirst({ where: eq(topics.id, topicId) });
+  if (!topic) return { ok: false, message: "选题不存在。", tone: "danger" };
+  const brief = normalizeTopicBrief(input, topic);
+  const article = await db.query.articles.findFirst({ where: eq(articles.topicId, topicId) });
+  await db
+    .update(topics)
+    .set({ brief, status: article ? topic.status : "briefed" })
+    .where(eq(topics.id, topicId));
+  revalidatePath("/topics");
+  if (article) revalidatePath(`/articles/${article.id}`);
+  return {
+    ok: true,
+    message: article
+      ? "Brief 已保存。现有正文可能需要重新对齐，系统不会自动覆盖。"
+      : "Brief 已保存。",
+    tone: article ? "warning" : "success",
+    data: { hasArticle: Boolean(article) },
+  };
+}
+
+export async function previewDraftFromBrief(
+  topicId: number,
+): Promise<AiActionResult<BriefDraftPreview>> {
+  return runExclusiveAiAction(`draft-preview:topic:${topicId}`, "preview-draft", async () => {
+    const topic = await db.query.topics.findFirst({ where: eq(topics.id, topicId) });
+    if (!topic?.brief) {
+      return { ok: false, message: "请先保存创作 Brief。", tone: "danger" };
+    }
+    const brief = normalizeTopicBrief(topic.brief, topic);
+    const inputs = await loadMaterialInputs(topic.materialIds);
+    const result = await aiDraft(topic.title, brief, inputs);
+    return completedAiAction(result, "新初稿预览已生成，确认后才会写入版本。", {
+      ...result.data,
+      sourceLabel: aiProvenance(result.meta),
+      briefFingerprint: briefFingerprint(brief),
+    });
+  });
+}
+
+export async function confirmDraftPreview(
+  topicId: number,
+  preview: BriefDraftPreview,
+): Promise<AiActionResult> {
+  if (!preview.contentHtml.trim() || preview.contentHtml.length > 500_000) {
+    return { ok: false, message: "预览内容无效，请重新生成。", tone: "danger" };
+  }
+  const topic = await db.query.topics.findFirst({ where: eq(topics.id, topicId) });
+  if (!topic?.brief) return { ok: false, message: "Brief 不存在。", tone: "danger" };
+  const currentBrief = normalizeTopicBrief(topic.brief, topic);
+  if (preview.briefFingerprint !== briefFingerprint(currentBrief)) {
+    return {
+      ok: false,
+      message: "Brief 已变化，这份初稿预览已过期。请重新生成后再确认。",
+      tone: "warning",
+    };
+  }
+  let article = await db.query.articles.findFirst({ where: eq(articles.topicId, topicId) });
+  const created = !article;
+  if (!article) {
+    [article] = await db
+      .insert(articles)
+      .values({ topicId, title: preview.title || topic.title, status: "draft" })
+      .returning();
+  }
+  await saveVersionCore(
+    db,
+    article.id,
+    preview.contentHtml,
+    `${preview.sourceLabel || "AI"} · 基于当前 Brief 的新初稿`,
+  );
+  if (created && topic.materialIds.length) {
+    await db.insert(articleCitations).values(
+      topic.materialIds.map((materialId) => ({
+        articleId: article!.id,
+        materialId,
+        note: "选题引用素材",
+      })),
+    );
+  }
+  await db.update(topics).set({ status: "drafting" }).where(eq(topics.id, topicId));
+  revalidatePath("/topics");
+  revalidatePath("/articles");
+  revalidatePath(`/articles/${article.id}`);
+  return {
+    ok: true,
+    message: created ? "初稿已确认并创建文章。" : "已确认并保存为新的初稿版本。",
+    tone: "success",
+    redirectTo: `/articles/${article.id}`,
+  };
 }
 
 /** 基于 brief 生成文章初稿，进入写作台 */
@@ -140,13 +247,16 @@ export async function createDraftFromTopic(topicId: number): Promise<AiActionRes
       };
     }
 
-    let brief = topic.brief;
+    let brief = topic.brief ? normalizeTopicBrief(topic.brief, topic) : null;
     let briefMeta: AiRunMeta | undefined;
     const inputs = await loadMaterialInputs(topic.materialIds);
     if (!brief) {
       const briefResult = await aiBrief(topic, inputs);
       briefMeta = briefResult.meta;
-      brief = { ...briefResult.data, citedMaterialIds: topic.materialIds };
+      brief = normalizeTopicBrief(
+        { ...briefResult.data, citedMaterialIds: topic.materialIds },
+        topic,
+      );
       await db.update(topics).set({ brief }).where(eq(topics.id, topicId));
     }
     const draftResult = await aiDraft(topic.title, brief, inputs);

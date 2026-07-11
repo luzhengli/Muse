@@ -54,12 +54,19 @@ export const collectionMaterials = sqliteTable(
 
 export interface TopicBrief {
   audience: string;
+  objective: string;
+  coreClaim: string;
   platforms: string[];
   keyPoints: string[];
   angle: string;
   tone: string;
   outline: string[];
   citedMaterialIds: number[];
+  evidence: {
+    keyPoint: string;
+    materialIds: number[];
+    noCitationRequired: boolean;
+  }[];
 }
 
 /** 选题板：选题卡片 + 创作 brief */

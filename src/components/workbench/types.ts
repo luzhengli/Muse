@@ -69,6 +69,7 @@ export interface WbCitation {
 /** 写作工作台一次性下发的全部数据（服务端组件序列化） */
 export interface WorkbenchData {
   articleId: number;
+  topicId: number | null;
   title: string;
   summary: string;
   coverAssetId: number | null;

@@ -98,6 +98,8 @@ export function mockBrief(
 ): BriefGen {
   return {
     audience: topic.targetAudience || "泛内容消费读者",
+    objective: `让读者理解「${topic.title}」并获得一条可以立即执行的建议`,
+    coreClaim: topic.corePoints[0] || `围绕「${topic.title}」建立清晰、可验证的判断`,
     platforms: topic.recommendedPlatforms.length
       ? topic.recommendedPlatforms
       : ["wechat"],

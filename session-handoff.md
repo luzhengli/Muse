@@ -2,46 +2,44 @@
 
 ## Current Objective
 
-- Goal: Muse v0.2「沉浸式写作与本地配置」—— 已完成（feat-017 / 018 / 019 全部 done）。
-- Current status: 响应式 app shell、沉浸式 Markdown 编辑器、设置中心全部交付并验证。
-- Branch / commit: main，见 `git log --oneline -5`（三个 feature 各一个独立 commit）。
+- Goal: Muse v0.3「可信创作闭环」。
+- Current status: feat-020 Active Revision Contract、feat-021 Editable Creative Brief 已完成；按用户要求在 feat-022 正式开始前停止。
+- Branch: `main`。feat-020 已提交；feat-021 应以本次会话末的描述性提交为准。
 
-## Completed This Session
+## Completed
 
-- [x] feat-017：窄屏顶栏+抽屉导航、工作台响应式双栏/堆叠、全站栅格断点；375/768/1280 真实浏览器验证；reduced-motion 用 Playwright emulateMedia 实测降级与恢复。
-- [x] feat-018：Markdown 双向转换层（可测试、未知节点不丢内容）、lowlight 代码块+语言选择、KaTeX 公式、表格/任务列表/链接、Bubble Menu（含 AI 改写选区 mapping 保护）、/ 插入菜单、自动保存（article_drafts 与版本检查点分离）+ 刷新恢复、专注模式、字数/保存状态。
-- [x] feat-019：/settings 四区块（编辑器/AI/外观/数据）、app_settings KV + zod 校验默认兼容、配置优先级 设置>环境变量>默认、密钥仅环境变量+脱敏展示、连接测试、mock 兜底开关、动效偏好 data-motion、JSON 全量导出。
+- [x] feat-020：当前工作稿统一形成/复用不可变检查点；审阅、包装、平台稿绑定精确来源版本；旧产物保留并显示过期；旧库兼容迁移与版本契约测试。
+- [x] feat-021：TopicBrief 增量加入目标、主张和逐要点证据；旧 JSON 自动补默认；选题板与写作台共用可编辑 Brief；AI Brief/初稿先预览再确认；初稿预览以 Brief 指纹防止过期写入。
+- [ ] feat-022：Evidence and Citation Loop（not-started）。
+- [ ] feat-023：Readiness Gate and Stale Derivatives（not-started）。
 
 ## Verification Evidence
 
-| Check | Command | Result | Notes |
-|---|---|---|---|
-| 单元测试 | `bun test tests` | ✅ 61/61 | markdown 39 + drafts 10 + settings 12 |
-| 类型检查 | `bun run typecheck` | ✅ | |
-| Lint | `bun run lint` | ✅ 0 警告 | next lint 弃用提示仍在（Next 16 前迁移） |
-| 构建 | `bun run build` | ✅ | 含 /settings、/api/export 新路由 |
-| 设计规范 | `npx @google/design.md lint DESIGN.md` | ✅ 0 errors | 已补编辑器/抽屉/设置相关规范 |
-| 浏览器 | dev server 冒烟 | ✅ | 证据逐条见 feature_list.json 与 progress.md |
+| Check | Result | Notes |
+|---|---|---|
+| `bun test tests` | ✅ 73/73 | markdown 38 + settings 12 + briefs 6 + revisions 6 + drafts 11 |
+| `bun run typecheck` | ✅ | |
+| `bun run lint` | ✅ | 仅 Next 16 前迁移 ESLint CLI 的弃用提示 |
+| `bun run build` | ✅ | 全路由构建通过 |
+| `npx @google/design.md lint DESIGN.md` | ✅ | 0 errors / 0 warnings |
+| 浏览器 | ✅ | feat-021 真实 AI 初稿确认、工作台 Brief 回显/保存不覆盖正文；375/768/1280 无溢出 |
 
-## Decisions Made
+## Architecture Decisions
 
-- Markdown 边界自研序列化器（Tiptap JSON→MD）+ markdown-it 解析；未知节点降级为文本并上报，绝不静默丢内容。
-- 工作稿（article_drafts）与不可变版本检查点分离；恢复规则 resolveInitialContent 纯函数可测。
-- 公式：KaTeX + 自研极薄 atom 节点；MD 表达 $..$ / $$..$$。
-- 设置存储：app_settings 单行 JSON + zod（.catch 字段级回退）；优先级 设置 > 环境变量 > 默认；密钥永不落库。
-- 测试与运行时 SQLite ABI 冲突（bun test vs Node better-sqlite3）→ 核心库函数显式传 db，测试用 bun:sqlite 内存库 + 共享 BOOTSTRAP_SQL。
-- 教训：`./init.sh`（next build）不能与运行中的 dev server 并存（共写 .next 会损坏 webpack runtime）；先停 dev server 再跑完整验证。
-
-## Blockers / Risks
-
-- 无阻塞。已知限制：真实中文 IME 组字仅能以 composition 事件序列模拟（建议真机补一次手动冒烟）；暗色主题未实现（设置仅持久化策略并明示）；.env.local 含真实 DeepSeek key，已被 .gitignore 覆盖，勿提交。
+- `articleVersions` 继续作为不可变内容快照，`articleDrafts` 作为可变工作稿，不引入第二套正文模型。
+- `normalizeTopicBrief` 是 TopicBrief JSON 的唯一兼容边界；新增字段不要求破坏性数据库迁移。
+- Brief 修改只更新 topic JSON，不自动覆盖正文；基于 Brief 的 AI 内容先返回预览，确认后才通过既有版本路径写入。
+- 初稿预览携带规范化 Brief 指纹，确认时重新计算并拒绝过期预览。
 
 ## Next Session Startup
 
-1. `./init.sh`（应全绿；如有 dev server 先停）。
-2. 读 `feature_list.json`：剩余 not-started 为 feat-006（真实平台发布器）、feat-007（复盘数据 API / AI 生图）。
-3. UI 改动前读 `DESIGN.md`（已含编辑器与设置中心规范）。
+1. 严格执行 `AGENTS.md` Startup Workflow，并运行 `./init.sh`。
+2. 读取 `progress.md` 的 feat-022 实现前契约；若尚未记录，先明确数据模型、状态转换、失败路径和兼容策略，再写代码。
+3. 只实现 feat-022；通过单测、typecheck、lint、针对性浏览器验证并提交后，才能进入 feat-023。
+4. 不改发布中心、复盘中心、真实平台 API；feat-006/007 保持 not-started。
 
-## Recommended Next Step
+## Risks / Notes
 
-- feat-006：实现某一平台真实 `PublisherAdapter`（src/lib/publish/adapters.ts）；或为编辑器补真机 IME 手动冒烟记录。
+- 开发服务器不要与 `next build`/`./init.sh` 并行运行，避免共享 `.next`。
+- 浏览器验收唯一控制台错误是开发环境缺失 `/favicon.ico` 的既有 404，非 feat-021 应用错误。
+- `data/`、`.env.local` 与构建产物不得提交。

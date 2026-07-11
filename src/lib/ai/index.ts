@@ -244,6 +244,8 @@ export async function aiBrief(
       mode: "json",
       schema: z.object({
         audience: z.string(),
+        objective: z.string().describe("希望读者获得的结果或采取的行动"),
+        coreClaim: z.string().describe("全文唯一核心主张"),
         platforms: z.array(z.string()),
         keyPoints: z.array(z.string()),
         angle: z.string(),
@@ -273,6 +275,8 @@ export async function aiDraft(
       prompt: `写一篇中文文章初稿。
 标题：${title}
 目标读者：${brief.audience}
+创作目标：${brief.objective}
+核心主张：${brief.coreClaim}
 语气：${brief.tone}
 主要观点：${brief.keyPoints.join("；")}
 大纲：${brief.outline.join(" / ")}

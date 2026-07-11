@@ -53,6 +53,8 @@ export interface TopicCardGen {
 
 export interface BriefGen {
   audience: string;
+  objective: string;
+  coreClaim: string;
   platforms: string[];
   keyPoints: string[];
   angle: string;
