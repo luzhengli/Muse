@@ -1,5 +1,6 @@
 import type { TopicBrief } from "@/db/schema";
 import type { ReadinessFacts } from "@/lib/readiness";
+import type { JourneyPanel } from "@/lib/journey-navigation";
 
 export interface WbVersion {
   id: number;
@@ -102,7 +103,7 @@ export interface WorkbenchData {
   /** readiness 事实（服务端汇集；客户端在正文变化时用同一纯函数重算） */
   readinessFacts: ReadinessFacts;
   /** URL ?panel= 指定的初始面板；null 时按 NextAction 自动打开 */
-  initialPanel: "review" | "packaging" | "versions" | "materials" | null;
+  initialPanel: JourneyPanel | null;
   activeCheckpoint: { id: number; versionNo: number } | null;
   /** 编辑器初始内容（最新版本或恢复的工作稿） */
   initialContentHtml: string;

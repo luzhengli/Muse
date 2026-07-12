@@ -22,6 +22,7 @@ import { getAppSettings } from "@/lib/settings-store";
 import { isDerivativeStale } from "@/lib/revisions";
 import { normalizeTopicBrief } from "@/lib/briefs";
 import { getCitationStatesCore } from "@/lib/citations";
+import { normalizeJourneyPanel } from "@/lib/journey-navigation";
 import {
   computeReadiness,
   deriveJourneyStep,
@@ -110,10 +111,7 @@ export default async function ArticleEditorPage({
   if (!readinessFacts) notFound();
   const readiness = computeReadiness(readinessFacts);
   const journeyStep = deriveJourneyStep(readinessFacts, readiness);
-  const validPanels = ["review", "packaging", "versions", "materials"] as const;
-  const initialPanel = validPanels.includes(panel as (typeof validPanels)[number])
-    ? (panel as (typeof validPanels)[number])
-    : null;
+  const initialPanel = normalizeJourneyPanel(panel);
 
   const data: WorkbenchData = {
     articleId,

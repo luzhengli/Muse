@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useEditor, type Editor } from "@tiptap/react";
 import "katex/dist/katex.min.css";
 import { uploadEditorImage } from "@/actions/assets";
@@ -22,6 +23,7 @@ import { MaterialsPanel } from "./materials-panel";
 import { ReadinessStrip } from "./readiness-strip";
 import { Badge } from "@/components/ui/badge";
 import { computeReadiness, type ReadinessTarget } from "@/lib/readiness";
+import { normalizeJourneyPanel } from "@/lib/journey-navigation";
 
 type Tab = "review" | "packaging" | "versions" | "materials";
 
@@ -37,14 +39,22 @@ const TABS: { id: Tab; label: string; hint?: (d: WorkbenchData) => number }[] = 
   { id: "materials", label: "资料", hint: (d) => d.evidence.length + d.citations.length },
 ];
 
+function revealRegion(element: HTMLElement | null) {
+  element?.scrollIntoView({
+    block: "start",
+    behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+  });
+}
+
 /**
  * 统一写作工作台：左侧主画布 + 右侧工作流面板（窄屏纵向堆叠）。
  * 编辑器为唯一结构化文档模型；自动保存写工作稿，显式保存产生版本检查点。
  */
 export function Workbench({ data }: { data: WorkbenchData }) {
+  const searchParams = useSearchParams();
   // 辅助面板按 NextAction 自动打开（URL ?panel= 优先）
   const [tab, setTab] = useState<Tab>(() => {
-    if (data.initialPanel) return data.initialPanel;
+    if (data.initialPanel && data.initialPanel !== "writing") return data.initialPanel;
     const target = computeReadiness(data.readinessFacts).nextAction.target;
     if (target === "brief" || target === "evidence") return "materials";
     if (target === "packaging") return "packaging";
@@ -55,6 +65,8 @@ export function Workbench({ data }: { data: WorkbenchData }) {
   const [contentEmpty, setContentEmpty] = useState(!data.readinessFacts.hasContent);
   const [activeCitationKey, setActiveCitationKey] = useState<string | null>(null);
   const editorRef = useRef<Editor | null>(null);
+  const editorRegionRef = useRef<HTMLDivElement | null>(null);
+  const panelRegionRef = useRef<HTMLDivElement | null>(null);
   const pickImageRef = useRef<() => void>(() => {});
   const slashBus = useMemo(() => new SlashMenuBus(), []);
   const latest = data.versions[0];
@@ -158,6 +170,21 @@ export function Workbench({ data }: { data: WorkbenchData }) {
     if (editor) setRevisionDirty(editor.getHTML() !== activeCheckpointHtml);
   }, [editor, activeCheckpointHtml]);
 
+  useEffect(() => {
+    const target = normalizeJourneyPanel(searchParams.get("panel"));
+    if (!target) return;
+    if (target === "writing") {
+      requestAnimationFrame(() => {
+        revealRegion(editorRegionRef.current);
+        editorRef.current?.chain().focus().run();
+      });
+      return;
+    }
+    setFocused(false);
+    setTab(target);
+    requestAnimationFrame(() => revealRegion(panelRegionRef.current));
+  }, [searchParams, editor]);
+
   const viewData = useMemo<WorkbenchData>(() => {
     if (!revisionDirty) return data;
     return {
@@ -224,7 +251,11 @@ export function Workbench({ data }: { data: WorkbenchData }) {
           : "lg:grid-cols-[minmax(0,1fr)_20rem] xl:grid-cols-[minmax(0,1fr)_22rem]",
       )}
     >
-      <div className={cn(focused && "mx-auto w-full max-w-3xl")}>
+      <div
+        ref={editorRegionRef}
+        id="article-editor"
+        className={cn("scroll-mt-4", focused && "mx-auto w-full max-w-3xl")}
+      >
         {!focused && (
           <ReadinessStrip
             articleId={data.articleId}
@@ -271,7 +302,11 @@ export function Workbench({ data }: { data: WorkbenchData }) {
       </div>
 
       {!focused && (
-        <div className="min-w-0">
+        <div
+          ref={panelRegionRef}
+          id="workbench-panel"
+          className="min-w-0 scroll-mt-4"
+        >
           <div className="flex gap-1 rounded-t-(--radius-card) border border-b-0 border-(--color-border) bg-(--color-surface) p-1.5">
             {TABS.map((t) => {
               const count = t.hint?.(viewData);
@@ -280,8 +315,9 @@ export function Workbench({ data }: { data: WorkbenchData }) {
                   key={t.id}
                   type="button"
                   onClick={() => setTab(t.id)}
+                  aria-pressed={tab === t.id}
                   className={cn(
-                    "flex-1 rounded-(--radius-control) px-2 py-1.5 text-xs font-medium transition-[color,background-color,transform] duration-150 ease-[cubic-bezier(0.16,1,0.3,1)] active:scale-[0.97] motion-reduce:scale-100 motion-reduce:transition-none",
+                    "flex-1 rounded-(--radius-control) px-2 py-1.5 text-xs font-medium transition-[color,background-color,transform] duration-150 ease-[cubic-bezier(0.16,1,0.3,1)] active:scale-[0.97] motion-reduce:scale-100 motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--color-primary)",
                     tab === t.id
                       ? "bg-(--color-primary-soft) text-(--color-primary)"
                       : "text-(--color-muted) hover:bg-(--color-muted-bg)",

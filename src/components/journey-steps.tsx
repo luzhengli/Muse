@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { JOURNEY_STEPS, type JourneyStep } from "@/lib/readiness";
+import { getJourneyDestination } from "@/lib/journey-navigation";
 import { cn } from "@/lib/utils";
 
 /**
@@ -17,22 +18,23 @@ export function JourneySteps({
   current: JourneyStep;
 }) {
   const currentIndex = JOURNEY_STEPS.findIndex((s) => s.id === current);
-  const hrefFor = (id: JourneyStep) => {
-    switch (id) {
-      case "direction":
-        return `/articles/${articleId}?panel=materials`;
-      case "writing":
-        return `/articles/${articleId}`;
-      case "checking":
-        return `/articles/${articleId}?panel=review`;
-      case "preparing":
-        return `/articles/${articleId}/variants`;
-      case "published":
-        return "/publish";
-      case "retro":
-        return "/retro";
+
+  function revealSamePageTarget(step: JourneyStep) {
+    const target = getJourneyDestination(articleId, step).target;
+    if (target !== "materials" && target !== "writing" && target !== "review") return;
+    const region = document.querySelector<HTMLElement>(
+      target === "writing" ? "#article-editor" : "#workbench-panel",
+    );
+    region?.scrollIntoView({
+      block: "start",
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        ? "auto"
+        : "smooth",
+    });
+    if (target === "writing") {
+      document.querySelector<HTMLElement>('#article-editor [contenteditable="true"]')?.focus();
     }
-  };
+  }
 
   return (
     <nav
@@ -42,10 +44,12 @@ export function JourneySteps({
       {JOURNEY_STEPS.map((step, i) => (
         <span key={step.id} className="flex items-center gap-1">
           <Link
-            href={hrefFor(step.id)}
+            href={getJourneyDestination(articleId, step.id).href}
+            onClick={() => revealSamePageTarget(step.id)}
             aria-current={step.id === current ? "step" : undefined}
+            aria-label={`前往创作步骤：${step.label}`}
             className={cn(
-              "interactive-motion rounded px-2 py-1",
+              "interactive-motion rounded px-2 py-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--color-primary)",
               step.id === current
                 ? "bg-(--color-primary) font-semibold text-white"
                 : i < currentIndex

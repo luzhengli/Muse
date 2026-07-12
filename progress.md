@@ -3,7 +3,15 @@
 ## Muse v0.4 — 小白也能无脑推进的可信创作飞轮（进行中）
 
 **Last Updated:** 2026-07-12
-**Active Feature:** 无 —— feat-022~026 全部完成，v0.4「可信创作飞轮」交付并通过最终验收
+**Active Feature:** 无 —— feat-027 已完成
+
+### feat-027 Journey Step Navigation Feedback
+
+- **根因**：步骤 href 正确写入 `?panel=`，但 Workbench 只在首次 `useState` 初始化读取 `data.initialPanel`，已挂载后 App Router 更新、前进/后退不会同步 tab；“写作”原本只链接到无参数文章 URL，没有可恢复的编辑器目标，也没有滚动或焦点反馈。规则同时分散在 JourneySteps、页面参数校验与本地 tab state。
+- **实现**：新增 `src/lib/journey-navigation.ts` 作为步骤目的地与 panel 解析的单一规则；`panel=writing` 明确表达编辑器目标。Workbench 监听当前 `useSearchParams()`：materials/review/packaging/versions 切换面板并滚动，writing 滚动并聚焦 Tiptap；增加稳定 DOM 锚点、面板 `aria-pressed` 和 2px focus-visible。JourneySteps 对同页入口执行幂等即时揭示，保证重复激活相同 URL 仍有反馈；滚动在 reduced-motion 下即时定位。readiness 的 `aria-current=step` 仍只来自服务端事实推导。
+- **TDD**：首轮 `bun test tests/journey-navigation.test.ts` 因缺少统一模块失败；实现后新增 3 项导航语义测试，并与 readiness 17 项共同通过（20/20）。测试覆盖合法/非法初始与后续 panel、方向/写作/检查目标、后三步跨页目的地；既有 journey readiness 映射保持通过。
+- **浏览器证据**（文章 11，事实阶段=复盘）：方向→资料面板 pressed 且 panelTop 17px；写作→contenteditable 获得焦点且 top 198px；检查→审阅 pressed 且 panelTop 20px。后退 materials、前进 review、刷新 review 均恢复，`aria-current=step` 全程为复盘。发布准备/已发布/复盘分别到达 `/articles/11/variants`、`/publish`、`/retro` 并可返回；重复方向从 scrollY 1601 回到 126（panelTop 16）。六入口均可 Tab 到达，准确 aria-label，focus-visible 为 solid 2px，Enter 可激活。375px 与 1280px 均无页面级横向溢出，控制台 0 error。导航前后文章 11 仍为 2 个版本，未产生新版本。
+- **验证**：`bun test tests` 126/126；最终 `./init.sh` 单次完整退出 0（bun install、typecheck、lint、build、DESIGN lint 0 errors / 0 warnings）。无残余产品风险；受限沙箱内 `npx` 曾无输出停滞，切换到可访问本机缓存的验证环境后同一标准命令稳定通过。
 
 ### feat-026 实现前契约
 
