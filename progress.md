@@ -1,6 +1,31 @@
 # Session Progress Log
 
-## Muse v0.5 — 全局命令面板与跨域搜索（进行中）
+## Muse v1.0 — PRD 落地（M1 进行中）
+
+**Last Updated:** 2026-07-13
+**Active Feature:** 无 —— feat-029 已完成；下一个为 feat-030（破坏式数据重构）
+
+### M1 拆解（2026-07-13）
+
+按 docs/PRD.md §5 里程碑映射，把 M1 拆解为 feat-029 ~ feat-035 写入 feature_list.json：029 规则注册表+类型化 payload（FR-0.2）→ 030 破坏式数据重构（FR-0.1 + §3.3）→ 031 X 单条+Thread（FR-1.1）→ 032 小红书图文+资产池（FR-1.2+1.5）→ 033 公众号文章（FR-1.3）→ 034 创作动线（FR-2.1+2.2）→ 035 状态一致/AI 可信/发布记录（FR-3.x+4.1~4.3+5.1）。FR-1.4 三视图随 031~033 各类型编辑器交付。
+
+### feat-029 实现前契约
+
+- **范围**：纯逻辑层（无 UI、无建表）。规则注册表 + X 官方加权计数 + 四类型 Zod payload + 发布检查纯函数，为 feat-030 数据重构与 feat-031~033 编辑器提供地基。旧 `lib/platforms.ts` 写死常量保留（现有 UI 仍在用），待 feat-030 收敛删除。
+- **规则注册表**（`lib/platform-rules/registry.ts`）：每条规则 `{id, value, description, source:{url,title,checkedAt}}`；每个「平台×格式」规则集带 `rulesVersion`（格式 `format/N@YYYY-MM-DD`，数值或语义变化必须递增）；`listAllRules()` 供未来设置页/文档展示来源与核对日期。规则数值：X 加权 280/URL 23/媒体 ≤4（GIF/视频单独 1 个）、Thread ≥2 条、小红书图 1-18/标题 ≤20 字/正文 ≤1000 字、公众号封面必填/标题 ≤64/作者 ≤8/摘要 ≤120。
+- **X 计数**（`x-text.ts`）：新依赖官方 `twitter-text@3.1.0`（v3 加权配置：CJK/emoji 计 2、多数拉丁与常用标点计 1、URL 一律 t.co 23），`parseXText` 返回 weightedLength/remaining/valid；全站禁止 `string.length` 判断 X 可发布性。其传递依赖 core-js@2 的 postinstall（资助提示脚本）保持 bun 默认阻止，不影响运行。
+- **payload**（`payloads.ts`）：Zod 判别联合（type 判别）+ `schemaVersion` 字面量。Schema 只约束「可存储结构」（草稿可不完整：空文本、0 图可存），「可发布性」由检查函数出具——两者职责分离。结构硬上限（X 媒体 ≤4、小红书图 ≤18、Thread ≥1 条）进 schema（编辑器同样拦截）。媒体/图片以 assetId 引用资产池，顺序即数组顺序；alt/crop 归 output_assets 关联表（feat-030），payload 不重复存储。小红书首图 = images[0]（发布器以第 1 张为封面，「设首图」即移到首位，不设独立标记避免双源失同步）。X 链接直接在 text 内（与 composer 一致）；internalNote 仅 Muse 侧不发布。
+- **发布检查**（`checks.ts`）：纯函数 `checkPlatformOutput(payload)` → checklist（blocker 红/warning 黄），结果携带出具时 rulesVersion 与逐项 ruleId；Thread 逐条检查带 postIndex 定位。语义要点：X 空文本但有媒体可发布（与 X 一致）；小红书无标题仅提醒（平台允许无标题）、0 图硬阻断；公众号摘要缺失仅提醒、封面/标题/正文缺失硬阻断、原文链接格式仅提醒；中文字数按 Unicode 码点计（emoji 不被代理对算成 2 字）。
+- **验证门槛**：≥10 例中文/emoji/URL 加权计数与官方算法对照 + 边界（280/281、140/141 汉字）+ string.length 误判反例；注册表每条规则来源/日期断言；payload 判别与越界拒绝；四类型 §3.2 硬条件 checklist 断言。bun test 全绿 + ./init.sh 全绿。
+
+### feat-029 完成证据
+
+- **实现**：`src/lib/platform-rules/`（registry.ts / x-text.ts / payloads.ts / checks.ts / index.ts），依赖新增 twitter-text@3.1.0 + @types/twitter-text。
+- **测试**：`bun test tests` 169/169（platform-rules 35 项新增：12 例加权计数抽样——纯拉丁 11、纯中文 8、假名 10、中英混排 13、单 emoji 2、ZWJ 家庭 emoji 2、旗帜 2、长短 URL 均 23、中文+URL+emoji 33/51、U+2014 计 1;280/281 与 140 汉/141 汉边界;300 字符 URL 有效与 150 汉字无效的 string.length 误判反例;规则来源 URL/核对日期/rulesVersion 断言;四类型 payload 解析与默认值、未知类型/schemaVersion=2/媒体 5 个/图 19 张/空 Thread 拒绝;X 恰 280 就绪与超限阻断、URL 按 23 计、仅媒体可发布、GIF 混用阻断;Thread 1 条阻断、第 2 条超限 postIndex=1 定位、3 条合规就绪;小红书 0 图「缺少图片，不可发布」、21 字标题阻断/20 字通过、1001 字正文阻断、emoji 码点计数、无标题仅提醒;公众号缺封面「缺少封面，不可发布」、摘要缺失仅提醒不阻断、65 字标题/121 字摘要/9 字作者/空标签正文阻断、完整就绪、坏链接仅提醒）。
+- **验证**：`./init.sh` 单次完整退出 0（bun install / typecheck / lint / build / DESIGN lint 0 errors 0 warnings）。纯逻辑层无 UI，无浏览器验收项。
+- **决策与已知限制**：小红书标题按码点「中英文同计 1」为保守解释（若发布器实测英文按半字计，放宽为规则集版本递增）；小红书话题数上限无可靠官方来源，未立规则;公众号原文链接格式无官方文档背书，降为提醒;X 规则来源 docs.x.com 字符计数规范与 help.x.com,小红书来源创作服务平台发布器（实测口径）,公众号来源新建草稿接口文档。feat-030 接线时 platform_output_revisions 落库前必须过 `parsePlatformOutputPayload`,并记录生成时 rulesVersion。
+
+## Muse v0.5 — 全局命令面板与跨域搜索（已完成）
 
 **Last Updated:** 2026-07-12
 **Active Feature:** 无 —— feat-028 已完成

@@ -284,6 +284,78 @@
       ],
       "status": "done",
       "evidence": "2026-07-12：lib/command-search.ts 跨域只读查询（文章 LIKE + readiness 状态/旅程直达 href、素材 FTS5 去重 + 标题兜底、选题 title/brief、复盘 Learning；LIKE ESCAPE 转义 + FTS 短语转义），/api/command-search 只读 GET，command-palette.tsx（Radix Dialog 焦点圈闭、combobox/listbox 键盘导航、200ms 防抖 + Abort、错误重试、无结果引导、关闭焦点还原），侧栏与移动端入口；编辑器 ⌘K 改为仅选区非空时拦截（链接编辑优先），其余唤起面板。bun test 134/134（新增 8 项：四域命中/空值/特殊字符转义/分组排序等）；./init.sh 退出 0。真实浏览器：⌘K 唤起、「未知/独立开发」跨域命中、Enter 直达 ?panel=review 与 ?panel=materials 且面板正确打开、编辑器未保存文本经唤起/关闭完好且焦点还原、fetch 失败注入→中文报错→重试恢复、空查询动作+最近更新、无结果引导、375px 图标唤起与点按直达且 scrollWidth=375、1280px 无溢出、控制台 0 error、服务端仅 GET 零写库。验收文本已从草稿清除，未产生新版本。"
+    },
+    {
+      "id": "feat-029",
+      "name": "Platform Rules Registry and Typed Output Payloads",
+      "description": "PRD v1.0 FR-0.2 + §3.2 地基:平台规则注册表(src/lib/platform-rules/)——每平台每格式的校验规则集中管理,每条规则携带来源 URL、核对日期与 rules_version;X 字符计数采用官方 twitter-text 加权算法(CJK/emoji 权重 2、URL 按 t.co 固定 23),禁止 string.length 判断可发布性。四种平台作品类型化 payload(Zod 判别联合 + schema_version):x_single_post / x_thread / xiaohongshu_image_note / wechat_article,配套每类型发布检查纯函数(阻断项/提醒项 checklist),覆盖 §3.2 硬条件:X 加权 ≤280 且无对外标题、Thread ≥2 条逐条校验、小红书无图不就绪+标题 ≤20 字+图 1-18 有序、公众号缺封面不就绪+摘要缺失提醒。纯逻辑层,不含 UI 与建表(FR-0.1 数据重构在 feat-030)。",
+      "dependencies": [
+        "feat-028"
+      ],
+      "status": "done",
+      "evidence": "2026-07-13：src/lib/platform-rules/（registry.ts 规则注册表——X 加权 280/URL 23/媒体 4、Thread ≥2、小红书图 1-18/标题 20/正文 1000、公众号封面必填/标题 64/作者 8/摘要 120,每条规则携带官方来源 URL + 核对日期,每格式规则集带 rulesVersion;x-text.ts 封装官方 twitter-text v3 加权算法（parseXText,新依赖 twitter-text@3.1.0）;payloads.ts 四类型 Zod 判别联合 + schemaVersion（草稿可不完整,结构越界拒绝,首图=images[0] 避免双源）;checks.ts 发布检查纯函数——阻断/提醒 checklist、Thread 逐条定位 postIndex、结果携带 rulesVersion 与 ruleId）。tests/platform-rules.test.ts 35 项：12 例中文/emoji/ZWJ/旗帜/URL 加权计数与官方算法对照 + 280/281 与 140/141 汉字边界 + string.length 误判反例;注册表来源/日期/版本断言;payload 判别与越界拒绝;四类型 §3.2 硬条件 checklist（0 图不可发布、恰 20 字标题通过、缺封面阻断、摘要缺失仅提醒、Thread 第 2 条超限定位）。bun test tests 169/169;./init.sh 全绿。纯逻辑层无 UI;旧 platforms.ts 保留待 feat-030 数据重构时收敛。"
+    },
+    {
+      "id": "feat-030",
+      "name": "Destructive Data Model Rebuild",
+      "description": "PRD v1.0 FR-0.1:按 §3.3 重建数据模型(creations / source_documents / source_revisions / platform_outputs / platform_output_revisions / output_assets / publications / performance_snapshots;reviews 多态挂载 source_revision 或 output_revision)。破坏式重构:提供一次性重置脚本 + 种子数据脚本,不迁移旧包装与旧平台稿;删除 packagings 表及全部 UI/action、旧 platform_variants 结构、articles.status 面向用户的渲染与兼容分支。作品修订记录生成时的 rules_version(依赖 feat-029 注册表)。JSON 全量导出覆盖新模型。验收:全新初始化数据库跑通全部动线;代码库无 packagings、无面向 UI 的 articles.status 引用;./init.sh 全绿。",
+      "dependencies": [
+        "feat-029"
+      ],
+      "status": "not-started",
+      "evidence": ""
+    },
+    {
+      "id": "feat-031",
+      "name": "X Outputs: Single Post and Thread",
+      "description": "PRD v1.0 FR-1.1 + FR-1.4(X 部分):x_single_post 编辑器(文本 + ≤4 媒体,实时加权字符余量,无对外标题/摘要字段,内部备注明确标注不发布);x_thread 一等作品类型(分条编辑:增删/排序/每条独立文本媒体与字符校验)。统一三视图:编辑 / 平台效果预览(Thread 串联样式、首屏截断) / 发布检查(注册表 checklist,阻断红/提醒黄)。发布助手:单条一键复制;Thread 逐条复制带 1/N 进度指示,复制完自动高亮下一条。验收:超 280 加权字符红色阻断;Thread 三条各自可复制且顺序正确;含 URL 文本按 t.co 长度计数。",
+      "dependencies": [
+        "feat-030"
+      ],
+      "status": "not-started",
+      "evidence": ""
+    },
+    {
+      "id": "feat-032",
+      "name": "Xiaohongshu Image Note Output and Project Asset Pool",
+      "description": "PRD v1.0 FR-1.2 + FR-1.5:项目级图片资产池(上传/管理;封面/首图/正文图/Post 附件等角色只在具体作品内指定,output_assets: role/order/alt/crop;全局 cover 概念删除)。xiaohongshu_image_note 编辑器:标题 ≤20 字、正文、话题、有序图片 1-18 张 + 首图标记,从资产池选图、排序、设首图、alt 文本。无图片 = 发布检查硬阻断(不可标记已发布)。预览模拟笔记样式(首图+标题+正文折叠+话题)。发布助手:复制标题、复制正文+话题、图片按顺序打包下载(文件名带序号)。验收:0 图作品显示「缺少图片,不可发布」;5 图调序后下载包序号与预览一致;同一图片可在公众号作封面、小红书作第 3 图互不影响。",
+      "dependencies": [
+        "feat-030"
+      ],
+      "status": "not-started",
+      "evidence": ""
+    },
+    {
+      "id": "feat-033",
+      "name": "WeChat Article Output",
+      "description": "PRD v1.0 FR-1.3:wechat_article 编辑器——标题、作者、摘要(digest)、HTML 正文(沿用 Tiptap)、封面资产、正文内图片、原文链接。封面缺失 = 硬阻断;摘要缺失 = 提醒。预览为文章样式(封面+标题+摘要+正文渲染)。发布助手:导出 HTML(正文图片可搬运打包/内联)、单独下载封面与正文图、复制标题/摘要;导出物能实际带入公众号后台编辑流程。验收:导出 HTML 粘贴进公众号草稿编辑器结构不散架(标题层级/图片占位/加粗引用保留);缺封面时不可标记发布。",
+      "dependencies": [
+        "feat-030"
+      ],
+      "status": "not-started",
+      "evidence": ""
+    },
+    {
+      "id": "feat-034",
+      "name": "Creation Flow: Platform-First Wizard and Output Derivation",
+      "description": "PRD v1.0 FR-2.1 + FR-2.2:创建向导三起点保留,方向确认后询问目标平台(默认值来自创作档案,可改)。单平台 → 跳过通用稿直接进入该平台作品专属编辑器(审阅/事实检查多态作用于作品文本);多平台 → 推荐通用稿路径:写通用稿 → 一键派生全部目标平台作品(逐个执行可单独取消) → 逐平台调整。「适配到另一个平台」为一等操作:任何现成平台作品可直接派生其他平台作品(output→output 溯源)。空编辑器双入口 NextAction:「自己开始写」与「按 Brief 生成初稿」并列,AI 初稿入口不深于一次点击。验收:单平台 X 用户从想法到可复制作品 ≤3 步;多平台一键得 N 份类型化作品;适配溯源链可见;三起点创建后首屏一键触达 AI 初稿。",
+      "dependencies": [
+        "feat-031",
+        "feat-032",
+        "feat-033"
+      ],
+      "status": "not-started",
+      "evidence": ""
+    },
+    {
+      "id": "feat-035",
+      "name": "Trust: Unified Stage, Platform Readiness, AI Fact Safety, Editable Publications",
+      "description": "PRD v1.0 FR-3.1~3.3 + FR-4.1~4.3 + FR-5.1:全站唯一派生阶段(方向/写作/制作平台作品/发布/复盘,覆盖首页/列表/项目页头/作品页/⌘K/发布记录);readiness 下沉到平台作品级,项目聚合「N/M 个平台已就绪」,一平台缺口不阻断另一平台;发布冻结修订快照。空项目状态静默(无实质内容不产生徽章/待办)。检查诚实语义(未处理发现显示 N 条待处理中性态,处理完或显式带风险跳过才转绿)。AI 全路径事实安全:所有 AI 写入/派生(初稿/改写/润色/派生/适配/差异更新/标题摘要话题)不得静默引入无来源事实断言,命中高亮并给「找证据引用」或「插入【待确认】」两条出路,未清除【待确认】为发布阻断;≥8 例对抗性测试。AI 反馈底线:2s 反馈/可取消/失败可恢复(重试或标注来源的兜底稿)。审阅结果即时呈现(0 发现显示明确文案)。发布记录可编辑:内联补链接/时间/备注,快照不可变。",
+      "dependencies": [
+        "feat-034"
+      ],
+      "status": "not-started",
+      "evidence": ""
     }
   ]
 }
