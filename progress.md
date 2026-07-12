@@ -1,9 +1,29 @@
 # Session Progress Log
 
-## Muse v0.4 — 小白也能无脑推进的可信创作飞轮（进行中）
+## Muse v0.5 — 全局命令面板与跨域搜索（进行中）
 
 **Last Updated:** 2026-07-12
-**Active Feature:** 无 —— feat-027 已完成
+**Active Feature:** 无 —— feat-028 已完成
+
+### feat-028 完成证据
+
+- **实现**：`src/lib/command-search.ts`（跨域只读查询核心：文章 title/summary LIKE + 逐命中 `getReadinessFactsCore → computeReadiness → deriveJourneyStep → getJourneyDestination` 得自然语言状态与直达 href；素材 FTS5 短语匹配按素材去重 + 标题 LIKE 兜底未清洗素材；选题 title/brief JSON LIKE，已有文章时直达 `?panel=materials`；复盘 title/insights/next_topic_hint LIKE；LIKE 统一 `ESCAPE '\'` 转义，FTS 沿用双引号短语转义；已发布/复盘步骤的文章直达文章本身而非全局页）；`/api/command-search` GET route（force-dynamic，纯 SELECT，异常 500 + 中文消息）；`src/components/command-palette.tsx`（Radix Dialog 焦点圈闭 + 背景 aria-hidden、combobox/listbox/aria-activedescendant、↑↓ 循环 Enter 直达 Esc 关闭、200ms 防抖 + AbortController 取消陈旧请求、关闭后焦点还原到唤起前元素、错误态「重试」项、无结果引导 + 去新建一次创作、IME 组字 Enter 不误触发）；导航入口（桌面侧栏「搜索… ⌘K」按钮 + 移动端顶栏搜索图标，经自定义事件唤起）；`segmentCjk` 从 db/fts 字节不变迁至 lib/utils（db/fts 改导入，纯函数归位供测试内存库复用）。
+- **快捷键冲突决策**：编辑器 Bubble Menu 的 ⌘K 链接编辑改为仅在选区非空时 preventDefault + stopPropagation（原实现空选区也 preventDefault），其余场景 ⌘K 一律唤起面板；DESIGN.md 已记录优先级。
+- **测试**：`bun test tests` 134/134（command-search 8 项新增：四域中文命中含 readiness 状态与 panel href、Brief/Learning 独立命中、空/空白查询零结果、无结果不报错、%/_ 字面匹配不通配误命中、引号/单引号/反斜杠不炸、分组固定顺序与文章按 updated_at 倒序、空查询首屏继续上次创作与最近列表）；`./init.sh` 单次完整退出 0（install/typecheck/lint/build/DESIGN lint 0 errors 0 warnings）。
+- **浏览器证据**（dev server，真实渲染）：⌘K 唤起（空查询显示动作+最近更新，均带 readiness 状态）；「未知」跨 文章/选题/复盘经验 命中、「独立开发」命中素材 FTS（[独立开发] 高亮片段 + 已整理状态）与文章；Enter 直达 `/articles/1?panel=review` 且工作台审阅面板 aria-pressed 打开、选题命中直达 `/articles/11?panel=materials`；编辑器输入未保存文本（170→186 字符）→ ⌘K 唤起 → Esc 关闭 → 文本完好且焦点还原回编辑器；选区非空时 ⌘K 打开链接编辑输入框、面板不开；焦点圈闭（Tab 后焦点留在对话框、背景 aria-hidden=true）；劫持 fetch 模拟失败 → 面板内中文报错「搜索暂时不可用，请重试。」→ 恢复后点「重试」同面板恢复结果；无结果显示引导 + 「去新建一次创作」；375px 顶栏搜索图标点击唤起、点按选题结果直达、`scrollWidth=375` 无溢出；1280px `scrollWidth=1280` 无溢出；干净刷新后完整走一遍唤起→搜索→Esc，控制台 0 error；服务端日志仅 GET 请求，面板全程零写库（route 仅 SELECT）。测试期间输入的验收文本已从文章 1 草稿逐字删除（恢复 170 字符），未产生任何新版本。
+- **已知限制**：自动化工具（Browser pane）合成的方向键 keydown 的 `key` 为空字符串，无法驱动高亮移动（真实键盘发送 `ArrowDown` 正常；已用标准 KeyboardEvent 走同一 React 处理器验证，并兼容旧浏览器的 `Down/Up` 键名）；「最近访问」以最近更新的创作代替，避免为访问记录引入写库，恪守只读约束。
+
+### feat-028 实现前契约
+
+- **数据模型**：不新增表、不迁移、零写库。搜索是纯读查询：文章（title/summary LIKE）、素材（复用既有 chunk_fts FTS5 短语匹配 + 素材标题 LIKE 兜底未清洗素材，按素材去重）、选题（title LIKE + brief JSON 文本 LIKE）、复盘经验（retro_notes 的 title/insights/nextTopicHint LIKE）。LIKE 统一 `ESCAPE '\'` 转义 `\ % _`，FTS 沿用双引号短语转义；`segmentCjk` 从 db/fts 移至 lib/utils（纯函数归位，db/fts 改为导入，行为不变）。
+- **核心查询（可测）**：新增 `src/lib/command-search.ts`，`searchCommandCore({ db, sqlite }, query, limit)` 显式传入 drizzle 句柄 + 最小 `prepare().all()` 原生句柄（运行时 better-sqlite3，测试 bun:sqlite 内存库）。返回按固定顺序分组（文章→素材→选题→复盘经验）；文章命中复用 `getReadinessFactsCore + computeReadiness + deriveJourneyStep + getJourneyDestination`，附自然语言状态（readiness state + 下一步）与直达 href（含 `?panel=` 写作台面板目标）；`getCommandHomeCore` 返回空查询数据（最近更新的创作 + 「继续上次创作」目标）。空/纯空白查询返回空分组，不查库。
+- **服务端入口**：GET route handler `/api/command-search?q=`（只读，force-dynamic）。成功返回 `{ ok, groups, recent, continueArticle }`；异常返回 500 + 中文错误消息，由面板呈现并支持重试。
+- **面板 UI**：新增 `src/components/command-palette.tsx`（client），挂载于根布局，基于既有依赖 @radix-ui/react-dialog（焦点圈闭、Esc 关闭、关闭后焦点还原到唤起前元素，遵循 shadcn/ui 可访问性约定）；输入框 role=combobox + aria-activedescendant，结果 listbox/option，↑↓ 循环、Enter 直达（router.push）、鼠标悬停同步激活。全站 ⌘K/Ctrl+K 监听 window keydown；移动端顶栏与桌面侧栏各加可点击搜索入口（自定义事件唤起同一面板）。输入 200ms 防抖 + AbortController 取消陈旧请求。空查询显示「动作」（开始一次新创作 /create、继续上次创作=最近更新文章、打开设置 /settings）与「最近更新」；动作在搜索时按标签过滤与结果同面板呈现。
+- **快捷键冲突**：编辑器 Bubble Menu 现占用 ⌘K（选区非空时打开链接编辑，feat-018 已文档化）。约定：选区非空时链接编辑优先（编辑器侧 stopPropagation），光标无选区或编辑器外 ⌘K 一律唤起面板；Bubble 菜单原「空选区也 preventDefault」的行为收敛为仅在真正处理时拦截。DESIGN.md 同步记录。
+- **失败路径**：查询请求失败/非 200 → 面板内明确报错 + 「重试」；无结果 → 引导文案 + 「去新建一次创作」动作；面板为纯覆盖层不卸载页面，编辑器未保存输入不受唤起/关闭影响（浏览器实测验证）。「最近访问」以最近更新代替（不引入访问记录表，恪守零写库约束）。
+- **验证门槛**：新增 tests/command-search.test.ts 覆盖 ①中文关键词四域命中（含 readiness 状态文案与 panel 直达 href）②空/空白查询零结果不报错 ③特殊字符转义（% _ \ 双引号单引号不炸、不通配误命中）④分组固定顺序与组内排序（文章按 updatedAt 倒序）。bun test tests 全绿 + typecheck/lint/build/DESIGN lint（./init.sh）+ 真实浏览器：⌘K 唤起→中文跨域命中→Enter 直达面板/页面→编辑器未保存内容不丢；空查询动作+最近更新；无结果引导；375px 入口可点且两档无横向溢出；控制台 0 error。
+
+### feat-027 Journey Step Navigation Feedback
 
 ### feat-027 Journey Step Navigation Feedback
 

@@ -274,6 +274,16 @@
       ],
       "status": "done",
       "evidence": "2026-07-12：新增 lib/journey-navigation.ts 统一六步 href 与 panel 解析；Workbench 监听 useSearchParams，materials/review/packaging/versions 同步切面板并滚动，panel=writing 滚动并聚焦 Tiptap；稳定 DOM 锚点、aria-pressed、准确 aria-label 与 2px focus-visible；重复激活同一步也有幂等反馈，reduced-motion 即时定位。TDD 首轮缺模块失败后转绿：journey navigation 3 项 + readiness 17 项共 20/20。真实浏览器文章 11（readiness=复盘）：方向/写作/检查目标正确，后退/前进/刷新恢复，当前步始终复盘；后三步分别到 variants/publish/retro；六入口 Tab+Enter 可达，375/1280 无页面溢出，控制台 0 error；版本数保持 2，未产生新版本。typecheck/lint 通过，最终 ./init.sh 通过。"
+    },
+    {
+      "id": "feat-028",
+      "name": "Global Command Palette and Cross-Domain Search",
+      "description": "全局命令面板与跨域搜索：全站 ⌘K/Ctrl+K（含移动端可点击入口）唤起面板，Esc 关闭、↑↓ Enter 键盘导航、焦点圈闭；只读服务端查询覆盖文章（标题/摘要）、素材（复用 FTS5）、选题（标题/Brief）、复盘经验（Learning 文本），结果按类型分组并显示自然语言状态（如文章 readiness 下一步），回车直达对应页面或写作台面板；常用动作（开始新创作/继续上次创作/打开设置）与搜索结果同面板；输入防抖，空查询显示动作与最近更新；查询失败面板内报错可重试，无结果给引导文案；唤起/关闭不丢编辑器未保存输入。",
+      "dependencies": [
+        "feat-027"
+      ],
+      "status": "done",
+      "evidence": "2026-07-12：lib/command-search.ts 跨域只读查询（文章 LIKE + readiness 状态/旅程直达 href、素材 FTS5 去重 + 标题兜底、选题 title/brief、复盘 Learning；LIKE ESCAPE 转义 + FTS 短语转义），/api/command-search 只读 GET，command-palette.tsx（Radix Dialog 焦点圈闭、combobox/listbox 键盘导航、200ms 防抖 + Abort、错误重试、无结果引导、关闭焦点还原），侧栏与移动端入口；编辑器 ⌘K 改为仅选区非空时拦截（链接编辑优先），其余唤起面板。bun test 134/134（新增 8 项：四域命中/空值/特殊字符转义/分组排序等）；./init.sh 退出 0。真实浏览器：⌘K 唤起、「未知/独立开发」跨域命中、Enter 直达 ?panel=review 与 ?panel=materials 且面板正确打开、编辑器未保存文本经唤起/关闭完好且焦点还原、fetch 失败注入→中文报错→重试恢复、空查询动作+最近更新、无结果引导、375px 图标唤起与点按直达且 scrollWidth=375、1280px 无溢出、控制台 0 error、服务端仅 GET 零写库。验收文本已从草稿清除，未产生新版本。"
     }
   ]
 }

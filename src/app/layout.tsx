@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import "./globals.css";
+import { CommandPalette } from "@/components/command-palette";
 import { MobileNav, SideNav } from "@/components/nav";
 import { RouteProgress } from "@/components/route-progress";
 import { getAppSettings } from "@/lib/settings-store";
@@ -25,6 +26,7 @@ export default function RootLayout({
         <Suspense fallback={null}>
           <RouteProgress />
         </Suspense>
+        <CommandPalette />
         <div className="app-shell flex min-h-screen flex-col md:flex-row">
           <MobileNav />
           <SideNav />

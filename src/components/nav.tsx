@@ -7,12 +7,14 @@ import {
   Home,
   Library,
   PenLine,
+  Search,
   Send,
   BarChart3,
   Settings,
   Menu,
   X,
 } from "lucide-react";
+import { openCommandPalette } from "@/components/command-palette";
 import { cn } from "@/lib/utils";
 
 /** feat-025 导航收敛：选题板退出全局导航，作为「创作」页内的库视图链接保留 */
@@ -67,6 +69,29 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   );
 }
 
+/** 全局搜索入口：唤起命令面板（⌘K / Ctrl+K 同效） */
+function CommandSearchButton() {
+  const [hint, setHint] = useState("");
+  useEffect(() => {
+    setHint(/Mac|iPhone|iPad/i.test(navigator.platform) ? "⌘K" : "Ctrl K");
+  }, []);
+  return (
+    <button
+      type="button"
+      onClick={openCommandPalette}
+      className="interactive-motion mb-4 flex w-full items-center gap-2 rounded-(--radius-control) border border-(--color-border) bg-(--color-muted-bg) px-2.5 py-1.5 text-xs text-(--color-muted) hover:border-(--color-primary) hover:text-(--color-foreground)"
+    >
+      <Search className="h-3.5 w-3.5" />
+      <span className="flex-1 text-left">搜索…</span>
+      {hint && (
+        <kbd className="rounded border border-(--color-border) bg-(--color-surface) px-1 py-0.5 text-[10px]">
+          {hint}
+        </kbd>
+      )}
+    </button>
+  );
+}
+
 /** 桌面端固定侧边导航（md 及以上显示）。 */
 export function SideNav() {
   return (
@@ -74,6 +99,7 @@ export function SideNav() {
       <div className="mb-6 px-2">
         <BrandMark />
       </div>
+      <CommandSearchButton />
       <NavLinks />
       <div className="mt-auto px-2 text-[10px] leading-relaxed text-(--color-muted)">
         采集 → 整理 → 选题 → 写作
@@ -109,16 +135,26 @@ export function MobileNav() {
   return (
     <header className="sticky top-0 z-40 flex h-14 shrink-0 items-center justify-between border-b border-(--color-border) bg-(--color-surface) px-4 md:hidden">
       <BrandMark />
-      <button
-        type="button"
-        aria-label={open ? "关闭导航" : "打开导航"}
-        aria-expanded={open}
-        aria-controls="mobile-nav-drawer"
-        onClick={() => setOpen((v) => !v)}
-        className="interactive-motion flex h-9 w-9 items-center justify-center rounded-(--radius-control) text-(--color-muted) hover:bg-(--color-muted-bg) hover:text-(--color-foreground)"
-      >
-        {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-      </button>
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          aria-label="搜索"
+          onClick={openCommandPalette}
+          className="interactive-motion flex h-9 w-9 items-center justify-center rounded-(--radius-control) text-(--color-muted) hover:bg-(--color-muted-bg) hover:text-(--color-foreground)"
+        >
+          <Search className="h-5 w-5" />
+        </button>
+        <button
+          type="button"
+          aria-label={open ? "关闭导航" : "打开导航"}
+          aria-expanded={open}
+          aria-controls="mobile-nav-drawer"
+          onClick={() => setOpen((v) => !v)}
+          className="interactive-motion flex h-9 w-9 items-center justify-center rounded-(--radius-control) text-(--color-muted) hover:bg-(--color-muted-bg) hover:text-(--color-foreground)"
+        >
+          {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+        </button>
+      </div>
 
       {open && (
         <div className="fixed inset-0 top-14 z-50">

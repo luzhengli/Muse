@@ -81,16 +81,16 @@ export function EditorBubbleMenu({
   const mathInputRef = useRef<HTMLInputElement>(null);
   const mathType = isMathSelected(editor);
 
-  // Cmd/Ctrl+K 打开链接编辑
+  // Cmd/Ctrl+K：选区非空时链接编辑优先并拦截；否则放行给全局命令面板
   useEffect(() => {
     const dom = editor.view.dom;
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        if (editor.state.selection.empty) return;
         e.preventDefault();
-        if (!editor.state.selection.empty) {
-          setHref(String(editor.getAttributes("link").href ?? ""));
-          setLinkOpen(true);
-        }
+        e.stopPropagation();
+        setHref(String(editor.getAttributes("link").href ?? ""));
+        setLinkOpen(true);
       }
     };
     dom.addEventListener("keydown", onKey);
