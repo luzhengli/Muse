@@ -1,31 +1,29 @@
 import Link from "next/link";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, notInArray } from "drizzle-orm";
 import { db, publishResults, publishTasks, retroNotes } from "@/db";
-import {
-  recordResult,
-  createRetroNote,
-  convertRetroToTopic,
-  deleteRetroNote,
-} from "@/actions/retro";
+import { deleteRetroNote } from "@/actions/retro";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Input, Textarea, Select, Label } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ConfirmButton } from "@/components/confirm-button";
 import { ListFilter } from "@/components/list-filter";
 import { Timeline } from "@/components/timeline";
+import { getRetroTraceCore, type RetroTrace } from "@/lib/retro";
 import { PLATFORM_IDS, platformName } from "@/lib/platforms";
 import { fmtTime, groupByDay, inDateRange, parseDateRange } from "@/lib/utils";
 import type { RetroNote } from "@/db";
-import { AiActionButton } from "@/components/ai-action";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * 复盘经验（feat-026）：向导记录 → 经验列表（含全链溯源）→ 在新创作中复用。
+ * 旧的手动录入表单已由复盘向导取代；一键转选题改为 /create 的预览-查重-确认。
+ */
 export default async function RetroPage({
   searchParams,
 }: {
   searchParams: Promise<{
-    taskId?: string;
+    saved?: string;
     q?: string;
     platform?: string;
     from?: string;
@@ -33,260 +31,184 @@ export default async function RetroPage({
     view?: string;
   }>;
 }) {
-  const { taskId, q, platform, from, to, view } = await searchParams;
-  const preselectedTask = taskId
-    ? await db.query.publishTasks.findFirst({
-        where: eq(publishTasks.id, Number(taskId)),
-      })
-    : null;
+  const { saved, q, platform, from, to, view } = await searchParams;
 
-  const allResults = await db
-    .select()
-    .from(publishResults)
-    .orderBy(desc(publishResults.recordedAt));
-  let notes = await db
-    .select()
-    .from(retroNotes)
-    .orderBy(desc(retroNotes.createdAt));
-
+  let notes = await db.select().from(retroNotes).orderBy(desc(retroNotes.createdAt));
   const range = parseDateRange(from, to);
-  let results = allResults;
-  if (platform) results = results.filter((r) => r.platform === platform);
   if (q?.trim()) {
     const kw = q.trim();
-    results = results.filter(
-      (r) => r.commentFeedback.includes(kw) || r.externalUrl.includes(kw),
-    );
     notes = notes.filter(
       (n) =>
         n.title.includes(kw) || n.insights.includes(kw) || n.nextTopicHint.includes(kw),
     );
   }
   if (range.fromUnix !== null || range.toUnix !== null) {
-    results = results.filter((r) => inDateRange(r.recordedAt, range));
     notes = notes.filter((n) => inDateRange(n.createdAt, range));
   }
-  const publishedTasks = await db
+
+  // 待记录表现的发布（发布了但还没有对应结果记录）
+  const recordedTaskIds = (
+    await db.select({ taskId: publishResults.taskId }).from(publishResults)
+  )
+    .map((r) => r.taskId)
+    .filter((id): id is number => id !== null);
+  const pendingTasks = await db
     .select()
     .from(publishTasks)
-    .where(eq(publishTasks.status, "published"))
+    .where(
+      recordedTaskIds.length
+        ? notInArray(publishTasks.id, recordedTaskIds)
+        : eq(publishTasks.status, "published"),
+    )
     .orderBy(desc(publishTasks.publishedAt));
+  const pendingRecord = pendingTasks.filter((t) => t.status === "published").slice(0, 3);
+
+  const traces = new Map<number, RetroTrace | null>();
+  for (const note of notes.slice(0, 20)) {
+    traces.set(note.id, await getRetroTraceCore(db, note.id));
+  }
+  let platformNotes = notes;
+  if (platform) {
+    platformNotes = notes.filter((n) => traces.get(n.id)?.platform === platform);
+  }
 
   function renderNoteCard(n: RetroNote) {
+    const trace = traces.get(n.id);
     return (
-      <Card key={n.id}>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold">{n.title}</span>
-                <span className="text-xs text-(--color-muted)">{fmtTime(n.createdAt)}</span>
-                <div className="ml-auto flex gap-1.5">
-                  {n.convertedTopicId ? (
-                    <Link href="/topics">
-                      <Badge tone="success">已转为选题 #{n.convertedTopicId}</Badge>
-                    </Link>
-                  ) : (
-                    <AiActionButton
-                      action={convertRetroToTopic.bind(null, n.id)}
-                      label="反哺为新选题 →"
-                      pendingLabel="选题生成中…"
-                      size="sm"
-                      variant="secondary"
-                    />
-                  )}
-                  <form
-                    action={async () => {
-                      "use server";
-                      await deleteRetroNote(n.id);
-                    }}
-                  >
-                    <ConfirmButton message="删除这条复盘结论？沉淀的经验将无法在新创作中复用。">
-                      删除
-                    </ConfirmButton>
-                  </form>
-                </div>
-              </div>
-              <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed">{n.insights}</p>
-              {n.nextTopicHint && (
-                <p className="mt-1 text-xs text-(--color-muted)">
-                  下一步方向：{n.nextTopicHint}
-                </p>
+      <Card key={n.id} className={saved === String(n.id) ? "border-(--color-success)" : undefined}>
+        <CardContent className="p-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-semibold">{n.title}</span>
+            <span className="text-xs text-(--color-muted)">{fmtTime(n.createdAt)}</span>
+            <div className="ml-auto flex gap-1.5">
+              {n.convertedTopicId ? (
+                <Badge tone="success">已复用为新方向</Badge>
+              ) : (
+                <Link href="/create?entry=retro">
+                  <Button size="sm" variant="secondary">
+                    在新创作中复用 →
+                  </Button>
+                </Link>
               )}
-            </CardContent>
-          </Card>
+              <form
+                action={async () => {
+                  "use server";
+                  await deleteRetroNote(n.id);
+                }}
+              >
+                <ConfirmButton message="删除这条经验？之后无法在新创作中复用它。">
+                  删除
+                </ConfirmButton>
+              </form>
+            </div>
+          </div>
+          <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed">{n.insights}</p>
+          {n.nextTopicHint && (
+            <p className="mt-1 text-xs text-(--color-muted)">下一步方向：{n.nextTopicHint}</p>
+          )}
+          {trace && trace.platform && (
+            <p className="mt-2 border-t border-(--color-border) pt-2 text-xs text-(--color-muted)">
+              溯源：{platformName(trace.platform)}
+              {trace.articleId && trace.articleTitle && (
+                <>
+                  {" · "}
+                  <Link
+                    href={`/articles/${trace.articleId}`}
+                    className="underline hover:text-(--color-primary)"
+                  >
+                    {trace.articleTitle}
+                  </Link>
+                </>
+              )}
+              {trace.sourceVersionNo && ` · 基于已保存版本 v${trace.sourceVersionNo}`}
+              {trace.topicTitle && ` · 创作说明「${trace.topicTitle}」`}
+              {trace.externalUrl && (
+                <>
+                  {" · "}
+                  <a
+                    href={trace.externalUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="underline hover:text-(--color-primary)"
+                  >
+                    发布链接
+                  </a>
+                </>
+              )}
+              {trace.convertedTopicTitle && ` → 新方向「${trace.convertedTopicTitle}」`}
+            </p>
+          )}
+        </CardContent>
+      </Card>
     );
   }
 
   return (
     <div className="mx-auto max-w-5xl space-y-4">
       <div>
-        <h1 className="text-xl font-bold">复盘中心</h1>
+        <h1 className="text-xl font-bold">复盘经验</h1>
         <p className="mt-1 text-sm text-(--color-muted)">
-          记录发布结果与互动数据，沉淀可复用经验，并一键反哺为下一轮选题。
+          每次发布后记录表现、沉淀经验；经验可以直接用来开始下一次创作。
         </p>
       </div>
 
-      <ListFilter
-        basePath="/retro"
-        keywordPlaceholder="按复盘标题 / 结论 / 反馈摘录搜索"
-        platformOptions={PLATFORM_IDS.map((p) => ({ value: p, label: platformName(p) }))}
-      />
+      {saved && (
+        <div
+          role="status"
+          className="ai-feedback rounded-(--radius-control) border border-(--color-success) bg-(--color-success-soft) px-3 py-2 text-sm text-(--color-success)"
+        >
+          经验已保存。可以「在新创作中复用」，也可以随时回来编辑认识。
+        </div>
+      )}
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        {/* 录入发布数据 */}
-        <Card>
+      {/* 待记录表现的发布 */}
+      {pendingRecord.length > 0 && (
+        <Card className="border-(--color-primary)">
           <CardHeader>
-            <CardTitle>录入发布结果</CardTitle>
-            <CardDescription>第一版手动录入，后续可接平台数据 API。</CardDescription>
+            <CardTitle>有 {pendingRecord.length} 次发布还没记录表现</CardTitle>
           </CardHeader>
-          <CardContent>
-            <form action={recordResult} className="space-y-2">
-              <div className="flex gap-2">
-                <Select
-                  name="taskId"
-                  defaultValue={preselectedTask ? String(preselectedTask.id) : ""}
-                  className="flex-1"
-                >
-                  <option value="">不关联发布任务（手动记录）</option>
-                  {publishedTasks.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      #{t.id} · {platformName(t.platform)} · {fmtTime(t.publishedAt)}
-                    </option>
-                  ))}
-                </Select>
-                <Select
-                  name="platform"
-                  defaultValue={preselectedTask?.platform ?? "wechat"}
-                  className="w-32"
-                >
-                  {PLATFORM_IDS.map((p) => (
-                    <option key={p} value={p}>
-                      {platformName(p)}
-                    </option>
-                  ))}
-                </Select>
+          <CardContent className="space-y-2">
+            {pendingRecord.map((t) => (
+              <div
+                key={t.id}
+                className="flex flex-wrap items-center gap-2 rounded-(--radius-control) border border-(--color-border) p-2.5 text-sm"
+              >
+                <Badge tone="primary">{platformName(t.platform)}</Badge>
+                <span className="text-xs text-(--color-muted)">
+                  发布于 {fmtTime(t.publishedAt)}
+                </span>
+                <Link href={`/retro/record?taskId=${t.id}`} className="ml-auto">
+                  <Button size="sm">记录这次表现 →</Button>
+                </Link>
               </div>
-              <Input name="externalUrl" placeholder="发布链接（可选）" />
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                <div>
-                  <Label>阅读/浏览</Label>
-                  <Input type="number" name="views" min={0} defaultValue={0} />
-                </div>
-                <div>
-                  <Label>点赞</Label>
-                  <Input type="number" name="likes" min={0} defaultValue={0} />
-                </div>
-                <div>
-                  <Label>评论</Label>
-                  <Input type="number" name="comments" min={0} defaultValue={0} />
-                </div>
-                <div>
-                  <Label>转发/收藏</Label>
-                  <Input type="number" name="shares" min={0} defaultValue={0} />
-                </div>
-              </div>
-              <Textarea
-                name="commentFeedback"
-                placeholder="典型评论与读者反馈摘录"
-                className="min-h-16"
-              />
-              <Button>保存结果</Button>
-            </form>
-          </CardContent>
-        </Card>
-
-        {/* 沉淀复盘结论 */}
-        <Card>
-          <CardHeader>
-            <CardTitle>沉淀复盘结论</CardTitle>
-            <CardDescription>写下这次内容表现的经验，可转为下一轮选题。</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form action={createRetroNote} className="space-y-2">
-              <div className="flex gap-2">
-                <Input name="title" placeholder="复盘标题" className="flex-1" />
-                <Select name="resultId" className="w-44">
-                  <option value="">不关联数据记录</option>
-                  {allResults.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      #{r.id} {platformName(r.platform)} · 阅读{r.views}
-                    </option>
-                  ))}
-                </Select>
-              </div>
-              <Textarea
-                name="insights"
-                required
-                placeholder="结论与经验：什么有效、什么无效、原因是什么…"
-                className="min-h-20"
-              />
-              <Input name="nextTopicHint" placeholder="下一步选题方向提示（可选）" />
-              <Button>保存复盘</Button>
-            </form>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* 数据记录 */}
-      {results.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>发布数据记录（{results.length}）</CardTitle>
-          </CardHeader>
-          <CardContent className="overflow-x-auto">
-            <table className="w-full min-w-96 text-sm">
-              <thead>
-                <tr className="border-b border-(--color-border) text-left text-xs text-(--color-muted)">
-                  <th className="py-2">平台</th>
-                  <th>阅读</th>
-                  <th>点赞</th>
-                  <th>评论</th>
-                  <th>转发</th>
-                  <th>反馈摘录</th>
-                  <th>记录时间</th>
-                </tr>
-              </thead>
-              <tbody>
-                {results.map((r) => (
-                  <tr key={r.id} className="border-b border-(--color-border) last:border-0">
-                    <td className="py-2">
-                      <Badge tone="primary">{platformName(r.platform)}</Badge>
-                    </td>
-                    <td>{r.views}</td>
-                    <td>{r.likes}</td>
-                    <td>{r.comments}</td>
-                    <td>{r.shares}</td>
-                    <td className="max-w-52">
-                      <span className="line-clamp-1 text-xs text-(--color-muted)">
-                        {r.commentFeedback || "-"}
-                      </span>
-                    </td>
-                    <td className="text-xs text-(--color-muted)">{fmtTime(r.recordedAt)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            ))}
           </CardContent>
         </Card>
       )}
 
-      {/* 复盘结论列表 */}
-      {notes.length === 0 ? (
+      <ListFilter
+        basePath="/retro"
+        keywordPlaceholder="按经验标题 / 内容 / 方向提示搜索"
+        platformOptions={PLATFORM_IDS.map((p) => ({ value: p, label: platformName(p) }))}
+      />
+
+      {platformNotes.length === 0 ? (
         <Card>
           <CardContent className="py-10 text-center text-sm text-(--color-muted)">
             {q || platform || from || to
-              ? "没有匹配的复盘结论。"
-              : "还没有复盘结论。数据录入后写下经验，形成「发布 → 复盘 → 新选题」的闭环。"}
+              ? "没有匹配的经验。"
+              : "还没有沉淀的经验。完成一次发布后，从发布记录进入「记录这次表现」。"}
           </CardContent>
         </Card>
       ) : view === "timeline" ? (
         <Timeline
-          groups={groupByDay(notes, (n) => n.createdAt).map((g) => ({
+          groups={groupByDay(platformNotes, (n) => n.createdAt).map((g) => ({
             label: g.label,
             children: g.items.map(renderNoteCard),
           }))}
         />
       ) : (
-        <div className="space-y-2">{notes.map(renderNoteCard)}</div>
+        <div className="space-y-2">{platformNotes.map(renderNoteCard)}</div>
       )}
     </div>
   );

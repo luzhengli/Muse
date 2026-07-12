@@ -1,17 +1,22 @@
 import Link from "next/link";
-import { desc, eq, inArray } from "drizzle-orm";
-import { db, publishTasks, platformVariants, articles } from "@/db";
-import { runDueTasks, publishNow, retryTask, deleteTask } from "@/actions/publish";
+import { desc, inArray } from "drizzle-orm";
+import { db, publishTasks, platformVariants, articles, publishResults } from "@/db";
+import { deleteTask } from "@/actions/publish";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { ConfirmButton } from "@/components/confirm-button";
 import { taskStatusLabel } from "@/lib/labels";
 import { platformName } from "@/lib/platforms";
-import { fmtTime, nowUnix } from "@/lib/utils";
+import { fmtTime } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
-export default async function PublishPage() {
+/**
+ * 发布记录（feat-026）：只读记录 + 「记录这次表现」入口。
+ * 真实发布由发布助手手动完成；mock 适配器不进入普通流程。
+ */
+export default async function PublishRecordsPage() {
   const tasks = await db
     .select()
     .from(publishTasks)
@@ -32,159 +37,118 @@ export default async function PublishPage() {
         .where(inArray(articles.id, articleIds))
     : [];
   const articleMap = new Map(articleRows.map((a) => [a.id, a.title]));
+  const recordedTaskIds = new Set(
+    (await db.select({ taskId: publishResults.taskId }).from(publishResults))
+      .map((r) => r.taskId)
+      .filter((id): id is number => id !== null),
+  );
 
-  const dueCount = tasks.filter(
-    (t) => t.status === "pending" && t.scheduledAt <= nowUnix(),
-  ).length;
-  const grouped = {
-    pending: tasks.filter((t) => t.status === "pending" || t.status === "publishing"),
-    published: tasks.filter((t) => t.status === "published"),
-    failed: tasks.filter((t) => t.status === "failed"),
-  };
+  const published = tasks.filter((t) => t.status === "published");
+  const legacy = tasks.filter((t) => t.status !== "published");
+
+  function taskRow(t: (typeof tasks)[number], isLegacy: boolean) {
+    const st = taskStatusLabel[t.status];
+    const variant = variantMap.get(t.variantId);
+    const articleTitle = variant ? articleMap.get(variant.articleId) : undefined;
+    const recorded = recordedTaskIds.has(t.id);
+    return (
+      <Card key={t.id}>
+        <CardContent className="flex flex-wrap items-center gap-3 p-4">
+          <Badge tone={st.tone}>{st.text}</Badge>
+          {isLegacy && <Badge>历史任务</Badge>}
+          <div className="min-w-0 flex-1">
+            <div className="line-clamp-1 text-sm font-medium">
+              {variant?.title ?? "（平台稿已删除）"}
+              <span className="ml-2 text-xs text-(--color-muted)">
+                {platformName(t.platform)}
+                {articleTitle && variant && (
+                  <>
+                    {" · "}
+                    <Link
+                      href={`/articles/${variant.articleId}/variants`}
+                      className="underline hover:text-(--color-primary)"
+                    >
+                      {articleTitle}
+                    </Link>
+                  </>
+                )}
+              </span>
+            </div>
+            <div className="mt-0.5 text-xs text-(--color-muted)">
+              {t.publishedAt ? `发布于 ${fmtTime(t.publishedAt)}` : `创建于 ${fmtTime(t.createdAt)}`}
+              {t.lastError && <span className="text-(--color-danger)"> · {t.lastError}</span>}
+              {t.externalUrl && (
+                <>
+                  {" · "}
+                  <a
+                    href={t.externalUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-(--color-primary) underline"
+                  >
+                    查看链接
+                  </a>
+                </>
+              )}
+            </div>
+          </div>
+          <div className="flex shrink-0 gap-1.5">
+            {t.status === "published" &&
+              (recorded ? (
+                <Badge tone="success">表现已记录</Badge>
+              ) : (
+                <Link href={`/retro/record?taskId=${t.id}`}>
+                  <Button size="sm">记录这次表现 →</Button>
+                </Link>
+              ))}
+            <form
+              action={async () => {
+                "use server";
+                await deleteTask(t.id);
+              }}
+            >
+              <ConfirmButton message="删除这条发布记录？已记录的复盘不受影响。">
+                删除
+              </ConfirmButton>
+            </form>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-5xl space-y-4">
-      <div className="flex items-end justify-between">
-        <div>
-          <h1 className="text-xl font-bold">发布中心</h1>
-          <p className="mt-1 text-sm text-(--color-muted)">
-            定时计划、状态跟踪与失败重试。当前使用 mock 发布器，真实平台 API 可通过适配器接口接入。
-          </p>
-        </div>
-        <form
-          action={async () => {
-            "use server";
-            await runDueTasks();
-          }}
-        >
-          <Button disabled={dueCount === 0}>
-            执行到期任务{dueCount > 0 ? `（${dueCount}）` : ""}
-          </Button>
-        </form>
-      </div>
-
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        {(
-          [
-            ["pending", "待发布 / 发布中"],
-            ["published", "已发布"],
-            ["failed", "失败"],
-          ] as const
-        ).map(([key, label]) => (
-          <Card key={key}>
-            <CardContent className="p-4">
-              <div className="text-2xl font-bold">{grouped[key].length}</div>
-              <div className="text-xs text-(--color-muted)">{label}</div>
-            </CardContent>
-          </Card>
-        ))}
+      <div>
+        <h1 className="text-xl font-bold">发布记录</h1>
+        <p className="mt-1 text-sm text-(--color-muted)">
+          在创作的「发布准备」里用发布助手手动发布并标记；这里跟踪记录，并把每次发布引向复盘。
+        </p>
       </div>
 
       {tasks.length === 0 && (
         <Card>
           <CardContent className="py-10 text-center text-sm text-(--color-muted)">
-            还没有发布任务。到文章的「平台版本」页派生版本后创建任务。
+            还没有发布记录。到创作的「发布准备」步骤，用发布助手完成第一次发布。
           </CardContent>
         </Card>
       )}
 
-      <div className="space-y-2">
-        {tasks.map((t) => {
-          const st = taskStatusLabel[t.status];
-          const variant = variantMap.get(t.variantId);
-          const articleTitle = variant ? articleMap.get(variant.articleId) : undefined;
-          return (
-            <Card key={t.id}>
-              <CardContent className="flex items-center gap-3 p-4">
-                <Badge tone={st.tone}>{st.text}</Badge>
-                <div className="min-w-0 flex-1">
-                  <div className="line-clamp-1 text-sm font-medium">
-                    {variant?.title ?? "（版本已删除）"}
-                    <span className="ml-2 text-xs text-(--color-muted)">
-                      {platformName(t.platform)}
-                      {articleTitle && variant && (
-                        <>
-                          {" · 母版："}
-                          <Link
-                            href={`/articles/${variant.articleId}/variants`}
-                            className="underline hover:text-(--color-primary)"
-                          >
-                            {articleTitle}
-                          </Link>
-                        </>
-                      )}
-                    </span>
-                  </div>
-                  <div className="mt-0.5 text-xs text-(--color-muted)">
-                    计划：{fmtTime(t.scheduledAt)}
-                    {t.publishedAt && ` · 发布于 ${fmtTime(t.publishedAt)}`}
-                    {t.attempts > 0 && ` · 尝试 ${t.attempts} 次`}
-                    {t.lastError && (
-                      <span className="text-(--color-danger)"> · {t.lastError}</span>
-                    )}
-                    {t.externalUrl && (
-                      <>
-                        {" · "}
-                        <a
-                          href={t.externalUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-(--color-primary) underline"
-                        >
-                          查看链接
-                        </a>
-                      </>
-                    )}
-                  </div>
-                </div>
-                <div className="flex shrink-0 gap-1.5">
-                  {t.status === "pending" && (
-                    <form
-                      action={async () => {
-                        "use server";
-                        await publishNow(t.id);
-                      }}
-                    >
-                      <Button size="sm" variant="secondary">
-                        立即发布
-                      </Button>
-                    </form>
-                  )}
-                  {t.status === "failed" && (
-                    <form
-                      action={async () => {
-                        "use server";
-                        await retryTask(t.id);
-                      }}
-                    >
-                      <Button size="sm" variant="secondary">
-                        重试
-                      </Button>
-                    </form>
-                  )}
-                  {t.status === "published" && (
-                    <Link href={`/retro?taskId=${t.id}`}>
-                      <Button size="sm" variant="outline">
-                        录入数据 →
-                      </Button>
-                    </Link>
-                  )}
-                  <form
-                    action={async () => {
-                      "use server";
-                      await deleteTask(t.id);
-                    }}
-                  >
-                    <Button size="sm" variant="ghost">
-                      删除
-                    </Button>
-                  </form>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+      {published.length > 0 && (
+        <div className="space-y-2">
+          <div className="text-xs font-semibold text-(--color-muted)">已发布</div>
+          {published.map((t) => taskRow(t, false))}
+        </div>
+      )}
+
+      {legacy.length > 0 && (
+        <div className="space-y-2">
+          <div className="text-xs font-semibold text-(--color-muted)">
+            历史任务（旧的定时发布已停用，仅可删除）
+          </div>
+          {legacy.map((t) => taskRow(t, true))}
+        </div>
+      )}
     </div>
   );
 }

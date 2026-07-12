@@ -261,8 +261,8 @@
       "dependencies": [
         "feat-025"
       ],
-      "status": "not-started",
-      "evidence": ""
+      "status": "done",
+      "evidence": "2026-07-12：手动发布助手（平台稿页内三步：一键复制整稿/标题/标签/CTA + 下载正文(/api/articles/[id]/export)与本地图片 + 粘贴真实链接标记已发布，服务端 markManualPublishedCore 复用 assertPublishable 拦截旧稿）；/publish 改「发布记录」只读列表 + 已发布行直达「记录这次表现」，mock 适配器执行/重试按钮撤出普通流程（executeTask 保留供开发测试）；/retro/record 复盘向导自动带入文章/平台/平台稿/链接（无内部 ID），五步（表现数据/读者关注/假设验证/下一次/可编辑摘要），buildRetroSummary 固定「观察/暂时支持」措辞不写因果；一次保存写 publish_results+retro_notes，getRetroTraceCore 溯源「发布结果→平台稿→正文版本→创作说明→新选题」；/retro 改「复盘经验」+「在新创作中复用」回流 /create?entry=retro（预览-查重-确认，convertedTopicId 回写）；readiness 已发布未记录→唯一下一步「记录这次表现」。bun test 123/123（retro 10 项新增）。真实浏览器全链路验收（测试数据验后清理）：复制兜底、标记发布、首页下一步变化、向导保存、溯源展示、经验回流创建新创作；375px 无溢出、控制台 0 error。typecheck/lint/build/DESIGN lint 全绿。"
     }
   ]
 }

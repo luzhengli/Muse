@@ -5,7 +5,12 @@ import { getAppSettings } from "@/lib/settings-store";
 
 export const dynamic = "force-dynamic";
 
-export default async function CreatePage() {
+export default async function CreatePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ entry?: string }>;
+}) {
+  const { entry } = await searchParams;
   const settings = getAppSettings();
   const notes = await db
     .select({
@@ -29,7 +34,7 @@ export default async function CreatePage() {
       </div>
       <CreateWizard
         primaryPlatform={settings.onboarding.primaryPlatform}
-        startFrom={settings.onboarding.startFrom}
+        startFrom={entry === "retro" ? "retro" : settings.onboarding.startFrom}
         retroNotes={notes}
       />
     </div>

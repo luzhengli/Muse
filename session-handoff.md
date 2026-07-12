@@ -3,7 +3,7 @@
 ## Current Objective
 
 - Goal: Muse v0.4「小白也能无脑推进的可信创作飞轮」（feat-022 → 023 → 新增并实现 024/025/026）。
-- Current status: feat-022~025 已完成并分别提交；下一步实现 feat-026（手动发布助手与复盘向导），完成后做全局最终验收（./init.sh + 375/768/1280 端到端）。
+- Current status: feat-022~026 全部完成，v0.4「可信创作飞轮」目标交付；最终验收（./init.sh + 三视口端到端）已通过。
 - Branch: `main`。
 
 ## Completed
@@ -14,18 +14,18 @@
 - [x] feat-023：Readiness 与 NextAction——`lib/readiness.ts` 唯一状态计算（八类事实 + 纯函数缺口/NextAction + assertPublishable）、`articles.aligned_brief_fingerprint` 对齐事实、写作台 ReadinessStrip（状态/唯一主行动/阻塞原因/可跳过风险/待办直达/确认对齐）、发布创建与执行双重服务端拦截、删除手动状态入口。
 - [x] feat-024：首次引导（3 步可跳过、答案作默认、只读示例）、首页收敛（继续上次创作 + 新创作 + ≤3 待处理，均复用 computeReadiness）、/create 三入口向导（AI 候选预览-推荐-查重、确认才落库、创作说明 6 问全默认值）。
 - [x] feat-025：创作驾驶舱——旅程步骤条（deriveJourneyStep + publishing 事实）、旧 review/packaging URL 重定向、NextAction 自动开面板、导航收敛（首页/创作/资料/发布记录/复盘经验/设置）、编辑器渐进披露 +「已保存」极简状态、AI 修改一键撤销、破坏性操作二次确认、界面术语清理（无检查点/工作稿/mock）。
-- [ ] feat-026：待实现（feature_list.json 已登记）。
+- [x] feat-026：手动发布助手（平台稿页内复制/下载/粘贴链接标记已发布，服务端拦截旧稿）、发布记录只读化（mock 撤出普通流程）、复盘向导（自动带入上下文、五步、「观察/暂时支持」措辞）、Learning 溯源展示与「在新创作中复用」回流（convertedTopicId 延伸溯源）。
 
 ## Verification Evidence
 
 | Check | Result | Notes |
 |---|---|---|
-| `bun test tests` | ✅ 114/114 | citations 15 + readiness 17 + create 9 新增 |
+| `bun test tests` | ✅ 123/123 | citations 15 + readiness 17 + create 9 + retro 10 等 |
 | `bun run typecheck` | ✅ | |
 | `bun run lint` | ✅ | 仅 Next 16 前迁移 ESLint CLI 的弃用提示 |
 | `bun run build` | ✅ | |
 | `npx @google/design.md lint DESIGN.md` | ✅ | 0 errors / 0 warnings |
-| 浏览器 | ✅ | feat-023：NextAction 全流程（空文→critical→平台稿→就绪→过期→恢复）、发布创建/执行双重拦截并回显原因、Brief 对齐确认闭环、刷新与中断不丢输入、375 首屏可见唯一下一步；测试数据（文章 13/选题 19）已清理 |
+| 浏览器 | ✅ | feat-026：发布助手复制/下载/标记已发布、首页下一步变「记录这次表现」、复盘向导五步→摘要→保存、溯源链自然语言展示、经验回流创建新创作（convertedTopicId 回写）；375/768/1280 无溢出、控制台 0 error；测试数据验后清理 |
 
 ## Architecture Decisions
 
@@ -39,9 +39,8 @@
 ## Next Session Startup
 
 1. 严格执行 `AGENTS.md` Startup Workflow，运行 `./init.sh`。
-2. feat-026（手动发布助手与复盘向导）：先在 progress.md 写实现前契约——发布中心改发布助手/发布记录（发布前检查、一键复制平台稿、下载正文与本地图片、展示标题/标签/CTA/说明、粘贴真实链接标记已发布；mock 适配器只留开发测试路径不进普通流程）；发布后首页下一步自动变「记录这次表现」；复盘向导自动带入文章/平台/平台稿/链接（不选内部 ID），合并「表现数据/读者关注/假设验证/保持调整停止」，生成可编辑摘要与 Learning 并保留全链溯源；Learning 回流新创作需预览-查重-确认（复用 /create 的 retro 入口）。
-3. feat-026 完成后：跑 `./init.sh` + 375/768/1280 真实浏览器全场景验收（A~E），确认目标验收条件后声明完成。
-4. 每次仅一个 feature；测试+浏览器验证+文档+提交后才进入下一个。
+2. v0.4 已收官。后续候选方向（未开始）：feat-006 真实平台 API 适配器、feat-007 复盘数据 API/生图接入、next lint → ESLint CLI 迁移（Next 16 前）、暗色主题（设置中已预留偏好）。
+3. 保持既有边界：不放宽 readiness、不引入假发布、密钥只走环境变量。
 
 ## Risks / Notes
 

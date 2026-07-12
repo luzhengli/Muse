@@ -5,8 +5,32 @@ import { redirect } from "next/navigation";
 import { and, eq, lte, inArray } from "drizzle-orm";
 import { db, publishTasks, platformVariants, articles } from "@/db";
 import { getAdapter } from "@/lib/publish/adapters";
+import { markManualPublishedCore } from "@/lib/publish-assist";
 import { assertPublishable, getReadinessFactsCore } from "@/lib/readiness";
 import { nowUnix } from "@/lib/utils";
+
+/**
+ * 手动发布：用户在真实平台发布后粘贴链接标记（feat-026 普通流程）。
+ * 服务端再次校验就绪；被拒绝时回显原因，不写任何记录。
+ */
+export async function markManualPublished(formData: FormData) {
+  const variantId = Number(formData.get("variantId"));
+  const externalUrl = String(formData.get("externalUrl") ?? "");
+  if (!variantId) return;
+  const variant = await db.query.platformVariants.findFirst({
+    where: eq(platformVariants.id, variantId),
+  });
+  if (!variant) return;
+  const result = await markManualPublishedCore(db, variantId, externalUrl);
+  if (!result.ok) {
+    redirect(
+      `/articles/${variant.articleId}/variants?publishBlocked=${encodeURIComponent(result.reason)}`,
+    );
+  }
+  revalidatePath("/publish");
+  revalidatePath("/");
+  redirect(`/articles/${variant.articleId}/variants?published=${result.taskId}`);
+}
 
 /** 发布前的服务端强制校验：旧稿或严重问题一律拒绝（feat-023） */
 async function checkPublishable(variant: {

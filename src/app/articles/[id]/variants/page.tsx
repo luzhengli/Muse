@@ -1,8 +1,8 @@
 import { notFound } from "next/navigation";
 import { desc, eq } from "drizzle-orm";
-import { db, articles, articleVersions, platformVariants, topics, type Platform } from "@/db";
+import { db, articles, articleVersions, assets, platformVariants, topics, type Platform } from "@/db";
 import { generateVariant, updateVariant, deleteVariant } from "@/actions/variants";
-import { createPublishTask } from "@/actions/publish";
+import { PublishAssistant } from "./publish-assistant";
 import { ArticleHeader } from "@/components/article-header";
 import { JourneySteps } from "@/components/journey-steps";
 import { ConfirmButton } from "@/components/confirm-button";
@@ -27,10 +27,10 @@ export default async function VariantsPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ publishBlocked?: string; taskCreated?: string }>;
+  searchParams: Promise<{ publishBlocked?: string; taskCreated?: string; published?: string }>;
 }) {
   const { id } = await params;
-  const { publishBlocked, taskCreated } = await searchParams;
+  const { publishBlocked, taskCreated, published } = await searchParams;
   const articleId = Number(id);
   const article = await db.query.articles.findFirst({
     where: eq(articles.id, articleId),
@@ -55,6 +55,10 @@ export default async function VariantsPage({
     .from(articleVersions)
     .where(eq(articleVersions.articleId, articleId));
   const versionNoById = new Map(versionRows.map((v) => [v.id, v.versionNo]));
+  const assetRows = await db
+    .select({ id: assets.id, fileName: assets.fileName, filePath: assets.filePath })
+    .from(assets)
+    .where(eq(assets.articleId, articleId));
 
   return (
     <div className="mx-auto max-w-5xl space-y-4">
@@ -79,7 +83,15 @@ export default async function VariantsPage({
           role="status"
           className="ai-feedback rounded-(--radius-control) border border-(--color-success) bg-(--color-success-soft) px-3 py-2 text-sm text-(--color-success)"
         >
-          发布任务已创建，可在发布中心跟踪状态。
+          发布任务已创建，可在发布记录页跟踪状态。
+        </div>
+      )}
+      {published && (
+        <div
+          role="status"
+          className="ai-feedback rounded-(--radius-control) border border-(--color-success) bg-(--color-success-soft) px-3 py-2 text-sm text-(--color-success)"
+        >
+          已标记为已发布。下一步：到复盘经验记录这次表现（首页也会提醒你）。
         </div>
       )}
 
@@ -188,16 +200,20 @@ export default async function VariantsPage({
                   </div>
                 </form>
 
-                {/* 创建发布任务 */}
-                <form action={createPublishTask} className="mt-3 flex items-end gap-2 rounded-(--radius-control) bg-(--color-muted-bg) p-3">
-                  <input type="hidden" name="variantId" value={v.id} />
-                  <div>
-                    <Label>定时发布（留空 = 立即排队）</Label>
-                    <Input type="datetime-local" name="scheduledAt" className="w-56" />
-                  </div>
-                  <Button size="sm">创建发布任务 →</Button>
-                  <span className="text-xs text-(--color-muted)">任务在发布中心统一跟踪</span>
-                </form>
+                {/* 手动发布助手：复制 → 手动发布 → 粘贴链接标记（feat-026） */}
+                <PublishAssistant
+                  articleId={articleId}
+                  variant={{
+                    id: v.id,
+                    title: v.title,
+                    content: v.content,
+                    hashtags: v.hashtags,
+                    cta: v.cta,
+                    publishNote: v.publishNote,
+                    stale: isDerivativeStale(v.sourceVersionId, active?.checkpoint?.id ?? null),
+                  }}
+                  assets={assetRows}
+                />
               </CardContent>
             </Card>
           );

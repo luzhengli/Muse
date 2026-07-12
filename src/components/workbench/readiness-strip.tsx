@@ -34,6 +34,10 @@ export function ReadinessStrip({
       router.push(`/articles/${articleId}/variants`);
       return;
     }
+    if (target === "retro") {
+      router.push("/retro");
+      return;
+    }
     onNavigate(target);
   }
 

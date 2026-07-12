@@ -46,7 +46,9 @@ export function CreateWizard({
   retroNotes: RetroNoteItem[];
 }) {
   const router = useRouter();
-  const [entry, setEntry] = useState<Entry>(startFrom === "material" ? "material" : "idea");
+  const [entry, setEntry] = useState<Entry>(
+    startFrom === "material" || startFrom === "retro" ? startFrom : "idea",
+  );
   const [step, setStep] = useState<Step>("entry");
   const [idea, setIdea] = useState("");
   const [retroId, setRetroId] = useState<number | null>(null);

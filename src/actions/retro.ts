@@ -1,94 +1,35 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
-import {
-  db,
-  publishResults,
-  publishTasks,
-  retroNotes,
-  topics,
-  type Platform,
-} from "@/db";
-import { aiRetroTopic } from "@/lib/ai";
-import type { AiActionResult } from "@/lib/ai";
-import { completedAiAction, runExclusiveAiAction } from "@/lib/ai/action";
+import { db, retroNotes } from "@/db";
+import { recordRetroCore, type RetroAnswers } from "@/lib/retro";
 
-/** 记录一次发布结果与互动数据（第一版手动录入） */
-export async function recordResult(formData: FormData) {
-  const platform = String(formData.get("platform") ?? "wechat") as Platform;
-  const taskId = Number(formData.get("taskId")) || null;
-  let variantId: number | null = null;
-  let externalUrl = String(formData.get("externalUrl") ?? "");
-  if (taskId) {
-    const task = await db.query.publishTasks.findFirst({
-      where: eq(publishTasks.id, taskId),
-    });
-    if (task) {
-      variantId = task.variantId;
-      externalUrl = externalUrl || task.externalUrl;
-    }
-  }
-  await db.insert(publishResults).values({
-    taskId,
-    variantId,
-    platform,
-    externalUrl,
-    views: Number(formData.get("views")) || 0,
-    likes: Number(formData.get("likes")) || 0,
-    comments: Number(formData.get("comments")) || 0,
-    shares: Number(formData.get("shares")) || 0,
-    commentFeedback: String(formData.get("commentFeedback") ?? ""),
-  });
+export interface RetroWizardPayload {
+  taskId: number | null;
+  variantId: number | null;
+  platform: string;
+  externalUrl: string;
+  answers: RetroAnswers;
+  summary: string;
+  title: string;
+  nextTopicHint: string;
+}
+
+/** 复盘向导保存：一次写入表现数据 + Learning（resultId 溯源），失败不丢输入 */
+export async function saveRetroWizard(
+  payload: RetroWizardPayload,
+): Promise<{ ok: false; message: string }> {
+  const result = await recordRetroCore(db, payload);
+  if (!result.ok) return { ok: false, message: result.message };
   revalidatePath("/retro");
+  revalidatePath("/");
+  redirect(`/retro?saved=${result.noteId}`);
 }
 
-/** 沉淀复盘结论 */
-export async function createRetroNote(formData: FormData) {
-  const insights = String(formData.get("insights") ?? "").trim();
-  if (!insights) return;
-  await db.insert(retroNotes).values({
-    resultId: Number(formData.get("resultId")) || null,
-    title:
-      String(formData.get("title") ?? "").trim() ||
-      `复盘 ${new Date().toLocaleDateString("zh-CN")}`,
-    insights,
-    nextTopicHint: String(formData.get("nextTopicHint") ?? ""),
-  });
-  revalidatePath("/retro");
-}
-
-/** 复盘结论反哺：一键转为下一轮选题 */
-export async function convertRetroToTopic(retroId: number): Promise<AiActionResult> {
-  return runExclusiveAiAction(`retro:topic:${retroId}`, "retro-to-topic", async () => {
-    const note = await db.query.retroNotes.findFirst({
-      where: eq(retroNotes.id, retroId),
-    });
-    if (!note) return { ok: false, message: "复盘记录不存在。", tone: "danger" };
-    if (note.convertedTopicId) {
-      return { ok: true, message: "该复盘已转为选题。", tone: "success" };
-    }
-    const result = await aiRetroTopic(note.insights, note.nextTopicHint);
-    const [topic] = await db
-      .insert(topics)
-      .values({
-        title: result.data.title,
-        targetAudience: result.data.targetAudience,
-        corePoints: result.data.corePoints,
-        angle: result.data.angle,
-        recommendedPlatforms: result.data.recommendedPlatforms,
-        origin: "retro",
-      })
-      .returning();
-    await db
-      .update(retroNotes)
-      .set({ convertedTopicId: topic.id })
-      .where(eq(retroNotes.id, retroId));
-    revalidatePath("/retro");
-    revalidatePath("/topics");
-    return completedAiAction(result, "已反哺为新选题。");
-  });
-}
+// 旧的手动录入表单与一键转选题已移除（feat-026）：
+// 记录表现走复盘向导（saveRetroWizard），经验回流走 /create 的预览-查重-确认。
 
 export async function deleteRetroNote(id: number) {
   await db.delete(retroNotes).where(eq(retroNotes.id, id));

@@ -50,7 +50,8 @@ export type ReadinessTarget =
   | "review"
   | "packaging"
   | "variants"
-  | "publish";
+  | "publish"
+  | "retro";
 
 export interface ReadinessGap {
   id:
@@ -211,6 +212,24 @@ export function computeReadiness(facts: ReadinessFacts): Readiness {
   const blocking = gaps.filter((gap) => gap.blocking);
   const readyToPublish = blocking.length === 0;
   const first = gaps[0];
+
+  // 已发布后的旅程推进：记录表现 → 沉淀经验（有阻断缺口时仍优先修复）
+  if (readyToPublish && facts.publishing.publishedCount > 0) {
+    if (facts.publishing.recordedResults === 0) {
+      return {
+        readyToPublish,
+        state: "已发布，记得记录这次表现",
+        gaps,
+        nextAction: { label: "记录这次表现", target: "retro", reason: null, skippable: true, skipRisk: "不记录表现就无法沉淀这次的经验。" },
+      };
+    }
+    return {
+      readyToPublish,
+      state: "已完成复盘，可以开始下一篇",
+      gaps,
+      nextAction: { label: "复用经验开始新创作", target: "retro", reason: null, skippable: true },
+    };
+  }
 
   const state = !facts.hasContent
     ? "从写下第一段开始"

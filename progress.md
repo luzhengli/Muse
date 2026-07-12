@@ -2,8 +2,25 @@
 
 ## Muse v0.4 — 小白也能无脑推进的可信创作飞轮（进行中）
 
-**Last Updated:** 2026-07-11
-**Active Feature:** feat-022~025 已完成；下一步实现 feat-026（手动发布助手与复盘向导）
+**Last Updated:** 2026-07-12
+**Active Feature:** 无 —— feat-022~026 全部完成，v0.4「可信创作飞轮」交付并通过最终验收
+
+### feat-026 实现前契约
+
+- **数据模型**：不新增表、不迁移。手动发布复用 `publish_tasks`（status=published、publishedAt、externalUrl，由「标记已发布」写入，不经适配器）；复盘向导写既有 `publish_results` + `retro_notes`（resultId 保持溯源）。溯源链依既有外键成立：发布结果→平台稿(variantId)→正文版本(sourceVersionId)/文章(articleId)→创作说明(topicId)→新选题(convertedTopicId)。
+- **发布助手（平台稿页内，同一创作上下文）**：每份平台稿附「发布助手」——①发布前检查（服务端 assertPublishable，同拦截语义）；②一键复制整稿/标题/标签/CTA，展示发布说明；③下载正文（新增 /api/articles/[id]/export 输出当前已保存版本 HTML 文档）与本地图片（既有 /api/assets 链接逐张下载）；④粘贴真实链接→「标记已发布」（服务端再次校验，旧稿拒绝；成功写 published 任务记录）。定时任务+mock 适配器 UI 从普通流程移除（executeTask 代码保留供开发测试，发布记录页不再提供执行/重试 mock 按钮）。
+- **发布记录（/publish 改名）**：只读记录列表；已发布行主行动「记录这次表现 →」直达复盘向导；遗留 pending/failed 任务标注「历史任务」仅可删除。
+- **复盘向导（/retro/record?taskId=）**：自动带入文章标题/平台/平台稿标题/链接（不要求选内部 ID）；四步——表现数据、读者关注、支持/未支持的假设、下一次保持/调整/停止；`buildRetroSummary` 纯函数生成可编辑摘要（措辞固定为「观察/暂时支持」，绝不写因果结论）；确认时一次事务化写入 publish_results + retro_notes（Learning）。旧 /retro 手动录入表单退位为向导入口 + 经验列表（含溯源展示）。
+- **回流与查重**：Learning 复用 /create「从过往经验开始」入口（feat-024 已实现预览-查重-确认）；`nextAction` 扩展——已发布未记录表现时首页与驾驶舱唯一下一步变为「记录这次表现」（target=retro），已记录后状态变为「已完成复盘」。
+- **不做假能力**：不实现 AI 生图（包装台维持提示词复制 + 本地上传，无不可用按钮）；不做真实平台 API/无人值守发布。
+- **失败路径**：标记已发布被拦截时回显原因且不写记录；向导每步输入在客户端 state 保留，保存失败可重试不丢输入；链接允许留空（先记录后补）。
+- **验证门槛**：单测覆盖 buildRetroSummary 措辞（含观察/暂时支持、无因果断言）、recordRetroCore 溯源落库、markManualPublishedCore 新旧稿放行/拒绝、readiness 已发布→记录表现的 NextAction；浏览器验证复制/下载/标记已发布/拦截、向导四步→摘要编辑→保存→经验列表溯源、首页下一步变化、/create 经验回流、375/1280 无溢出、控制台 0 error。
+
+### feat-026 完成证据
+
+- **实现**：`lib/publish-assist.ts`（markManualPublishedCore：assertPublishable 服务端校验 + URL 校验 + 写 published 任务）、`lib/retro.ts`（getRetroContextCore 自动带入上下文、buildRetroSummary 观察/暂时支持措辞、recordRetroCore 落库、getRetroTraceCore 溯源链）、`/api/articles/[id]/export` 正文下载、平台稿页内 PublishAssistant 三步（复制→下载→粘贴链接标记）、/publish 改「发布记录」只读+「记录这次表现」入口（mock 执行/重试按钮撤出普通流程）、/retro/record 五步向导（表现数据→读者关注→假设验证→下一次→可编辑摘要）、/retro 改「复盘经验」经验列表+自然语言溯源+「在新创作中复用」、readiness nextAction 扩展 published→记录这次表现。
+- **测试**：`bun test tests` 123/123（retro 10 项新增：摘要措辞约束与空段落、手动发布新旧稿放行/拒绝/非法链接、上下文带入、溯源落库与 convertedTopic 延伸、空摘要零写入、发布后 NextAction 推进）；typecheck、lint、build、DESIGN lint 全绿。
+- **浏览器**（topic 22/23、article 16/17 等测试数据验后按 ID 清理）：发布助手展开三步、一键复制整稿（clipboard 失败时 prompt 兜底）、无图片时诚实提示、粘贴链接标记已发布（服务端写 published 任务）；首页下一步立即变「记录这次表现」；发布记录页只读 + 直达向导（?taskId= 自动带入文章/平台/平台稿/链接，无内部 ID）；向导四步填答→自动摘要（【表现观察】…不代表因果）→保存→复盘经验页绿框新经验+完整溯源（平台·文章·基于已保存版本 v1·创作说明·发布链接）；「在新创作中复用」→ /create?entry=retro → 真实 AI 方向预览 → 确认创建 topic 23（origin=retro）+ article 17，convertedTopicId 回写溯源延伸；375px 向导/发布记录无溢出；控制台 0 error。
 
 ### feat-025 实现前契约
 
