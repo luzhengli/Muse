@@ -92,6 +92,8 @@ CREATE TABLE IF NOT EXISTS reviews (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   article_id INTEGER NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
   version_id INTEGER REFERENCES article_versions(id) ON DELETE SET NULL,
+  source_revision_id INTEGER,
+  output_revision_id INTEGER,
   type TEXT NOT NULL,
   summary TEXT NOT NULL DEFAULT '',
   created_at INTEGER NOT NULL DEFAULT (unixepoch())
@@ -137,6 +139,7 @@ CREATE TABLE IF NOT EXISTS packagings (
 CREATE TABLE IF NOT EXISTS assets (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   article_id INTEGER REFERENCES articles(id) ON DELETE CASCADE,
+  creation_id INTEGER,
   kind TEXT NOT NULL DEFAULT 'other',
   file_name TEXT NOT NULL,
   file_path TEXT NOT NULL,
@@ -201,6 +204,98 @@ CREATE TABLE IF NOT EXISTS app_settings (
   updated_at INTEGER NOT NULL DEFAULT (unixepoch())
 );
 
+-- v1.0 目标数据模型（PRD §3.3，feat-030 起；旧模型共存至 feat-034 切换收口）
+
+CREATE TABLE IF NOT EXISTS creations (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  working_title TEXT NOT NULL,
+  brief TEXT,
+  target_platforms TEXT NOT NULL DEFAULT '[]',
+  topic_id INTEGER REFERENCES topics(id) ON DELETE SET NULL,
+  hypothesis TEXT NOT NULL DEFAULT '',
+  created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+  updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+);
+
+CREATE TABLE IF NOT EXISTS source_documents (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  creation_id INTEGER NOT NULL UNIQUE REFERENCES creations(id) ON DELETE CASCADE,
+  content_html TEXT NOT NULL DEFAULT '',
+  content_text TEXT NOT NULL DEFAULT '',
+  base_revision_id INTEGER,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+  updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+);
+
+CREATE TABLE IF NOT EXISTS source_revisions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  source_document_id INTEGER NOT NULL REFERENCES source_documents(id) ON DELETE CASCADE,
+  revision_no INTEGER NOT NULL,
+  content_html TEXT NOT NULL,
+  content_text TEXT NOT NULL DEFAULT '',
+  note TEXT NOT NULL DEFAULT '',
+  created_at INTEGER NOT NULL DEFAULT (unixepoch())
+);
+
+CREATE TABLE IF NOT EXISTS platform_outputs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  creation_id INTEGER NOT NULL REFERENCES creations(id) ON DELETE CASCADE,
+  platform TEXT NOT NULL,
+  format TEXT NOT NULL,
+  active_revision_id INTEGER,
+  source_revision_id INTEGER REFERENCES source_revisions(id) ON DELETE SET NULL,
+  derived_from_output_id INTEGER,
+  rules_version TEXT NOT NULL,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+  updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+);
+
+CREATE TABLE IF NOT EXISTS platform_output_revisions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  output_id INTEGER NOT NULL REFERENCES platform_outputs(id) ON DELETE CASCADE,
+  revision_no INTEGER NOT NULL,
+  payload_json TEXT NOT NULL,
+  schema_version INTEGER NOT NULL,
+  rules_version TEXT NOT NULL,
+  note TEXT NOT NULL DEFAULT '',
+  created_at INTEGER NOT NULL DEFAULT (unixepoch())
+);
+
+CREATE TABLE IF NOT EXISTS output_assets (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  output_revision_id INTEGER NOT NULL REFERENCES platform_output_revisions(id) ON DELETE CASCADE,
+  asset_id INTEGER NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
+  role TEXT NOT NULL,
+  order_index INTEGER NOT NULL DEFAULT 0,
+  post_index INTEGER,
+  alt_text TEXT NOT NULL DEFAULT '',
+  crop_json TEXT,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch())
+);
+
+CREATE TABLE IF NOT EXISTS publications (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  output_id INTEGER NOT NULL REFERENCES platform_outputs(id) ON DELETE CASCADE,
+  output_revision_id INTEGER NOT NULL REFERENCES platform_output_revisions(id),
+  platform TEXT NOT NULL,
+  url TEXT NOT NULL DEFAULT '',
+  note TEXT NOT NULL DEFAULT '',
+  published_at INTEGER NOT NULL,
+  published_with_risk INTEGER NOT NULL DEFAULT 0,
+  risk_reason TEXT NOT NULL DEFAULT '',
+  created_at INTEGER NOT NULL DEFAULT (unixepoch())
+);
+
+CREATE TABLE IF NOT EXISTS performance_snapshots (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  publication_id INTEGER NOT NULL REFERENCES publications(id) ON DELETE CASCADE,
+  metrics TEXT NOT NULL DEFAULT '{}',
+  captured_at INTEGER NOT NULL,
+  days_since_publish INTEGER NOT NULL DEFAULT 0,
+  note TEXT NOT NULL DEFAULT '',
+  created_at INTEGER NOT NULL DEFAULT (unixepoch())
+);
+
 CREATE VIRTUAL TABLE IF NOT EXISTS chunk_fts USING fts5(
   content,
   chunk_id UNINDEXED,
@@ -214,6 +309,13 @@ CREATE INDEX IF NOT EXISTS idx_variants_article ON platform_variants(article_id)
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON publish_tasks(status, scheduled_at);
 CREATE INDEX IF NOT EXISTS idx_evidence_article ON evidence_citations(article_id);
 CREATE INDEX IF NOT EXISTS idx_evidence_material ON evidence_citations(material_id);
+CREATE INDEX IF NOT EXISTS idx_source_revisions_document ON source_revisions(source_document_id);
+CREATE INDEX IF NOT EXISTS idx_outputs_creation ON platform_outputs(creation_id);
+CREATE INDEX IF NOT EXISTS idx_output_revisions_output ON platform_output_revisions(output_id);
+CREATE INDEX IF NOT EXISTS idx_output_assets_revision ON output_assets(output_revision_id);
+CREATE INDEX IF NOT EXISTS idx_output_assets_asset ON output_assets(asset_id);
+CREATE INDEX IF NOT EXISTS idx_publications_output ON publications(output_id);
+CREATE INDEX IF NOT EXISTS idx_snapshots_publication ON performance_snapshots(publication_id);
 `;
 
 /** 根据现有列返回幂等兼容迁移；旧数据不伪造无法确认的来源版本。 */
@@ -221,6 +323,8 @@ export function compatibilityMigrationSql(columns: {
   articles: string[];
   platformVariants: string[];
   reviewFindings: string[];
+  reviews: string[];
+  assets: string[];
 }) {
   const statements: string[] = [];
   if (!columns.articles.includes("summary")) {
@@ -239,6 +343,17 @@ export function compatibilityMigrationSql(columns: {
   }
   if (!columns.reviewFindings.includes("evidence_state")) {
     statements.push("ALTER TABLE review_findings ADD COLUMN evidence_state TEXT");
+  }
+  // v1.0 审阅多态挂载（§3.3）：旧库幂等补列，不改写既有审阅
+  if (!columns.reviews.includes("source_revision_id")) {
+    statements.push("ALTER TABLE reviews ADD COLUMN source_revision_id INTEGER");
+  }
+  if (!columns.reviews.includes("output_revision_id")) {
+    statements.push("ALTER TABLE reviews ADD COLUMN output_revision_id INTEGER");
+  }
+  // v1.0 项目级资产池归属；旧资产 creation_id 为空（不伪造归属）
+  if (!columns.assets.includes("creation_id")) {
+    statements.push("ALTER TABLE assets ADD COLUMN creation_id INTEGER");
   }
   statements.push(
     "CREATE INDEX IF NOT EXISTS idx_variants_source_version ON platform_variants(source_version_id)",

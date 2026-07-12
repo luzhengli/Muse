@@ -3,7 +3,24 @@
 ## Muse v1.0 — PRD 落地（M1 进行中）
 
 **Last Updated:** 2026-07-13
-**Active Feature:** 无 —— feat-029 已完成；下一个为 feat-030（破坏式数据重构）
+**Active Feature:** 无 —— feat-029、feat-030 已完成；下一个为 feat-031（X 单条 + Thread 编辑器）
+
+### feat-030 实现前契约（破坏式数据重构 · 数据地基阶段）
+
+- **Staging 决策（重要）**：FR-0.1 的终验收（「代码库无 packagings」「全新库跑通全部动线」）依赖 feat-031~033 的新编辑器就位，中途删除旧 UI 会让应用长期断裂。故 feat-030 交付**新数据模型地基**（§3.3 全部新表 + 重置/种子脚本 + 数据层核心 + 导出覆盖），旧模型（articles/packagings/platform_variants/publish_tasks）与其 UI 共存运行；**切换与删除收口在 feat-034**（feature_list 已同步该验收）。
+- **新表（§3.3 全量）**：creations（工作标题≠平台标题、brief、目标平台集合、hypothesis 假设登记列随 M1 建表/UI 在 M2）、source_documents（0..1/项目，行内承载可变工作稿，替代旧 drafts 表模式）、source_revisions（不可变）、platform_outputs(platform, format, active_revision_id 无 FK 代码维护, source_revision_id?, derived_from_output_id 适配溯源, rules_version 镜像活动修订)、platform_output_revisions(payload_json 判别联合, schema_version, rules_version 权威值)、output_assets(修订级快照关联：role 首图/正文图/封面/post_media、order、postIndex、alt、crop)、publications(冻结 output_revision_id + 可编辑 url/时间/note + published_with_risk/risk_reason)、performance_snapshots(metrics JSON + captured_at + days_since_publish 口径)。
+- **兼容补列**：reviews.source_revision_id / output_revision_id（多态挂载 §3.3，reviews.article_id 的 NOT NULL 放开留到 feat-034 重置时）、assets.creation_id（项目级资产池归属；旧资产 NULL 不伪造）。新库由 BOOTSTRAP_SQL 原生带列，旧库 PRAGMA 幂等 ALTER。
+- **数据层核心语义**：payload 未过 Zod 校验零写入；平台由格式经注册表推导；资产引用必须属于本项目资产池（跨项目/幽灵资产拒绝）；output_assets 结构由 payload 派生（结构权威在 payload，本表承载 alt/裁剪并按资产反查），仅 alt 变化也产生新修订（发布快照不可事后篡改），未指定时按 assetId 从上一修订继承；修订内容+资产元数据均相同才复用；发布检查未过默认阻断、显式 acceptRisk 才放行并落 risk 字段；发布冻结活动修订，updatePublicationMetaCore 只能改元数据；快照口径天数 = floor((captured-published)/86400)。
+- **脚本**：db:reset 需 --yes（破坏式：删 muse.db* 重建空库，不迁移不备份，资产文件目录保留）；db:seed 幂等（已有 creations 即跳过）：2 素材（1 条含语料块+FTS）、1 选题、创作 A 多平台（通用稿 r1 → x_thread/小红书图文/公众号文章，公众号**刻意缺封面**演示平台级 readiness 独立）、创作 B 单平台直写（x_single_post 已发布 + 3 天口径快照）、2 张占位 PNG 写入资产池。脚本用 bun:sqlite（规避 better-sqlite3 的 Node/Bun ABI 冲突）。
+- **验证门槛**：内存库单测覆盖上述全部语义 + resetDatabase 清旧建新 + seedCore 幂等 + 旧库补列；/api/export 覆盖 27 表（补漏 evidence_citations）；./init.sh 全绿；dev 库启动迁移后旧数据无损。
+
+### feat-030 完成证据
+
+- **实现**：schema.ts/bootstrap.ts（8 新表 + 7 索引 + 兼容补列扩签名）、lib/creations.ts、lib/platform-outputs.ts、lib/seed.ts、scripts/reset-db.ts、scripts/seed-db.ts、package.json db:reset/db:seed、/api/export 27 表。
+- **测试**：`bun test tests` 191/191（creations 6 项 + platform-outputs 16 项新增；revisions/citations 兼容测试适配新签名）。
+- **脚本端到端**（临时 MUSE_DATA_DIR，不动 dev 库）：无 --yes 拒绝并退出 1；reset → 33 表空库；seed → 2 创作/4 作品/1 发布/1 快照/2 素材/2 图片；重复 seed 幂等跳过；库内容抽查全部正确（4 作品 rules_version 双记、output_assets 角色/顺序/alt、发布冻结 revision 4、快照口径 3 天、FTS 命中）。
+- **验证**：`./init.sh` 单次完整退出 0（typecheck / ESLint 0 警告 / build / DESIGN lint 0 errors）。dev 库启动迁移后新表+新列就位、旧数据无损（9 articles）。
+- **已知限制/后续**：公众号正文内图片的 output_assets 追踪随 feat-033 编辑器接线（HTML 引用无法在数据层可靠解析，当前仅封面行）；reviews.article_id NOT NULL 放开与旧模型删除随 feat-034 重置收口；无 DB 事务先例沿用「写前全量预校验」惯例，多语句写入非原子（本地单用户可接受，若引入事务应全库统一）。
 
 ### M1 拆解（2026-07-13）
 

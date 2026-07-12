@@ -115,6 +115,9 @@ describe("兼容迁移", () => {
       articles: ["id", "title"],
       platformVariants: ["id", "article_id", "platform", "title", "content"],
       reviewFindings: ["id", "review_id", "category", "severity", "quote", "suggestion", "status"],
+      // 本用例只关注 variants/findings 补列；reviews/assets 视为已是新结构
+      reviews: ["id", "source_revision_id", "output_revision_id"],
+      assets: ["id", "creation_id"],
     });
     statements.forEach((statement) => sqlite.exec(statement));
 

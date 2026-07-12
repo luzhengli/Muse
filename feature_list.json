@@ -298,12 +298,12 @@
     {
       "id": "feat-030",
       "name": "Destructive Data Model Rebuild",
-      "description": "PRD v1.0 FR-0.1:按 §3.3 重建数据模型(creations / source_documents / source_revisions / platform_outputs / platform_output_revisions / output_assets / publications / performance_snapshots;reviews 多态挂载 source_revision 或 output_revision)。破坏式重构:提供一次性重置脚本 + 种子数据脚本,不迁移旧包装与旧平台稿;删除 packagings 表及全部 UI/action、旧 platform_variants 结构、articles.status 面向用户的渲染与兼容分支。作品修订记录生成时的 rules_version(依赖 feat-029 注册表)。JSON 全量导出覆盖新模型。验收:全新初始化数据库跑通全部动线;代码库无 packagings、无面向 UI 的 articles.status 引用;./init.sh 全绿。",
+      "description": "PRD v1.0 FR-0.1(数据地基阶段):按 §3.3 建立新数据模型——creations(工作标题/brief/目标平台/假设登记) / source_documents(0..1 可变工作稿) / source_revisions(不可变修订) / platform_outputs(platform/format/活动修订指针/来源修订/适配溯源/rules_version) / platform_output_revisions(类型化 payload_json + schema_version + 生成时 rules_version) / output_assets(修订↔资产:角色/顺序/postIndex/alt/裁剪) / publications(冻结修订快照 + 可编辑元数据 + 带风险发布记录) / performance_snapshots(多时间点 + 口径天数);reviews 兼容补多态列、assets 补 creation_id 资产池归属。一次性重置脚本(db:reset --yes)+ 种子脚本(db:seed,幂等)替代历史数据迁移;JSON 全量导出覆盖新模型。数据层核心:payload 校验落库、修订去重与不可变链、资产池归属校验、发布检查阻断/带风险发布、发布快照冻结。Staging 决策:旧模型(articles/packagings/platform_variants)与其 UI 共存运行至 feat-031~033 新编辑器就位,「代码库无 packagings/旧 UI 删除/全新库跑通全部动线」的 FR-0.1 终验收随 feat-034 切换收口。",
       "dependencies": [
         "feat-029"
       ],
-      "status": "not-started",
-      "evidence": ""
+      "status": "done",
+      "evidence": "2026-07-13:src/db/schema.ts + bootstrap.ts 新增 8 张 §3.3 表(33 表全量)+ 7 个索引;compatibilityMigrationSql 扩签名(reviews.source_revision_id/output_revision_id、assets.creation_id 幂等补列,旧行保留 NULL 不伪造归属)。src/lib/creations.ts(创建即选平台校验/通用稿 0..1 幂等/工作稿去重/修订内容相同复用+基线同步)、src/lib/platform-outputs.ts(payload 过 parsePlatformOutputPayload 才落库、输出与修订双记 rulesVersion、output_assets 由 payload 派生(首图/正文图/post_media+postIndex/封面)且校验资产属于本项目资产池、修订去重含 alt/裁剪元数据(仅 alt 变化也新修订,发布快照不可事后篡改)、跨项目 source_revision 拒绝、发布检查未过默认阻断+显式带风险发布记录原因、发布冻结活动修订、元数据可编辑快照指向不可变、表现快照口径天数自动计算)、src/lib/seed.ts + scripts/reset-db.ts(--yes 保护)/seed-db.ts。/api/export 27 表(新 8 表+补漏的 evidence_citations)。测试 191/191(新增 creations 6 + platform-outputs 16:非法 payload 零写入、rules_version、资产池边界、修订链、发布冻结/带风险/补链接、快照口径、resetDatabase 清旧建新、seedCore 幂等且公众号种子作品刻意缺封面演示平台级阻断、旧库补列)。./init.sh 全绿;临时目录端到端 reset(拒绝无 --yes)→seed→重复 seed 幂等跳过;dev 库启动迁移后旧数据无损(9 articles)。"
     },
     {
       "id": "feat-031",
@@ -338,7 +338,7 @@
     {
       "id": "feat-034",
       "name": "Creation Flow: Platform-First Wizard and Output Derivation",
-      "description": "PRD v1.0 FR-2.1 + FR-2.2:创建向导三起点保留,方向确认后询问目标平台(默认值来自创作档案,可改)。单平台 → 跳过通用稿直接进入该平台作品专属编辑器(审阅/事实检查多态作用于作品文本);多平台 → 推荐通用稿路径:写通用稿 → 一键派生全部目标平台作品(逐个执行可单独取消) → 逐平台调整。「适配到另一个平台」为一等操作:任何现成平台作品可直接派生其他平台作品(output→output 溯源)。空编辑器双入口 NextAction:「自己开始写」与「按 Brief 生成初稿」并列,AI 初稿入口不深于一次点击。验收:单平台 X 用户从想法到可复制作品 ≤3 步;多平台一键得 N 份类型化作品;适配溯源链可见;三起点创建后首屏一键触达 AI 初稿。",
+      "description": "PRD v1.0 FR-2.1 + FR-2.2:创建向导三起点保留,方向确认后询问目标平台(默认值来自创作档案,可改)。单平台 → 跳过通用稿直接进入该平台作品专属编辑器(审阅/事实检查多态作用于作品文本);多平台 → 推荐通用稿路径:写通用稿 → 一键派生全部目标平台作品(逐个执行可单独取消) → 逐平台调整。「适配到另一个平台」为一等操作:任何现成平台作品可直接派生其他平台作品(output→output 溯源)。空编辑器双入口 NextAction:「自己开始写」与「按 Brief 生成初稿」并列,AI 初稿入口不深于一次点击。验收:单平台 X 用户从想法到可复制作品 ≤3 步;多平台一键得 N 份类型化作品;适配溯源链可见;三起点创建后首屏一键触达 AI 初稿。 【切换收口(承接 feat-030 staging 决策)】:全站动线切换到 creations/platform_outputs 新模型后,删除 packagings 表及全部 UI/action、旧 platform_variants/publish_tasks/publish_results 结构与页面、articles.status 面向用户的一切渲染;FR-0.1 终验收在此完成——db:reset + db:seed 后全新数据库跑通全部动线,代码库无 packagings 引用,./init.sh 全绿。",
       "dependencies": [
         "feat-031",
         "feat-032",

@@ -322,6 +322,9 @@ describe("旧库兼容", () => {
       articles: ["id", "summary", "cover_asset_id"],
       platformVariants: ["id", "source_version_id"],
       reviewFindings: ["id", "review_id", "category", "severity", "quote", "suggestion", "status"],
+      // 本用例只关注 findings 补列；reviews/assets 视为已是新结构
+      reviews: ["id", "source_revision_id", "output_revision_id"],
+      assets: ["id", "creation_id"],
     });
     statements.forEach((statement) => sqlite.exec(statement));
 

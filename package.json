@@ -12,7 +12,9 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "db:reset": "bun scripts/reset-db.ts",
+    "db:seed": "bun scripts/seed-db.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^1.2.12",

@@ -196,7 +196,12 @@ export const evidenceCitations = sqliteTable("evidence_citations", {
   updatedAt: integer("updated_at").notNull().default(now()),
 });
 
-/** 审阅：一次 AI 或人工审阅 */
+/**
+ * 审阅：一次 AI 或人工审阅。
+ * v1.0 多态挂载（§3.3）：新模型下审阅作用于通用稿修订（sourceRevisionId）
+ * 或平台作品修订（outputRevisionId）之一；旧模型经 articleId/versionId 挂载。
+ * articleId 的 NOT NULL 约束在切换重置时放开（feat-034，破坏式不做表重建迁移）。
+ */
 export const reviews = sqliteTable("reviews", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   articleId: integer("article_id")
@@ -205,6 +210,10 @@ export const reviews = sqliteTable("reviews", {
   sourceVersionId: integer("version_id").references(() => articleVersions.id, {
     onDelete: "set null",
   }),
+  /** v1.0 多态：通用稿修订（与 outputRevisionId 至多一个非空） */
+  sourceRevisionId: integer("source_revision_id"),
+  /** v1.0 多态：平台作品修订 */
+  outputRevisionId: integer("output_revision_id"),
   type: text("type", { enum: ["ai", "human"] }).notNull(),
   summary: text("summary").notNull().default(""),
   createdAt: integer("created_at").notNull().default(now()),
@@ -272,12 +281,18 @@ export const packagings = sqliteTable("packagings", {
   createdAt: integer("created_at").notNull().default(now()),
 });
 
-/** 本地图片资源 */
+/**
+ * 本地图片资源。v1.0 起为项目级图片资产池（§3.1）：creationId 归属创作项目，
+ * 「封面/首图/正文图/Post 附件」等角色只在具体作品内经 outputAssets 指定。
+ * articleId 与 kind 为旧模型残留，切换后收口（feat-034）。
+ */
 export const assets = sqliteTable("assets", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   articleId: integer("article_id").references(() => articles.id, {
     onDelete: "cascade",
   }),
+  /** v1.0 资产池归属（无 FK 兼容补列，代码保证有效性；重置后新数据必填） */
+  creationId: integer("creation_id"),
   kind: text("kind", { enum: ["cover", "illustration", "other"] })
     .notNull()
     .default("other"),
@@ -372,6 +387,194 @@ export const appSettings = sqliteTable("app_settings", {
   updatedAt: integer("updated_at").notNull().default(now()),
 });
 
+/* ------------------------------------------------------------------ */
+/* v1.0 目标数据模型（PRD §3.3，feat-030 起）。                          */
+/* 旧 articles/packagings/platform_variants 模型与其 UI 共存运行，      */
+/* 切换与删除在 feat-031~034 的新编辑器就位后收口（破坏式，不迁移）。   */
+/* ------------------------------------------------------------------ */
+
+/**
+ * 创作项目：一次创作的容器。
+ * workingTitle 是内部工作标题，不等同于任何平台的发布标题（§3.1）。
+ */
+export const creations = sqliteTable("creations", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  workingTitle: text("working_title").notNull(),
+  /** 创作 Brief（沿用 TopicBrief 结构，normalizeTopicBrief 兼容旧 JSON） */
+  brief: text("brief", { mode: "json" }).$type<TopicBrief | null>(),
+  /** 目标平台集合（创建即选平台，FR-2.1） */
+  targetPlatforms: text("target_platforms", { mode: "json" })
+    .$type<Platform[]>()
+    .notNull()
+    .default([]),
+  /** 三起点溯源：从哪个选题出发（可空） */
+  topicId: integer("topic_id").references(() => topics.id, {
+    onDelete: "set null",
+  }),
+  /** 本次想验证什么（FR-6.1：schema 随 M1 建表，UI 在 M2 交付） */
+  hypothesis: text("hypothesis").notNull().default(""),
+  createdAt: integer("created_at").notNull().default(now()),
+  updatedAt: integer("updated_at").notNull().default(now()),
+});
+
+/**
+ * 可选通用稿（0..1 per creation）：跨平台内容母版的可变工作稿。
+ * 单平台直写时不存在；不可变检查点见 sourceRevisions。
+ */
+export const sourceDocuments = sqliteTable("source_documents", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  creationId: integer("creation_id")
+    .notNull()
+    .unique()
+    .references(() => creations.id, { onDelete: "cascade" }),
+  contentHtml: text("content_html").notNull().default(""),
+  contentText: text("content_text").notNull().default(""),
+  /** 工作稿基于哪个修订（保存新修订后同步；无 FK，代码维护） */
+  baseRevisionId: integer("base_revision_id"),
+  createdAt: integer("created_at").notNull().default(now()),
+  updatedAt: integer("updated_at").notNull().default(now()),
+});
+
+/** 不可变通用稿修订 */
+export const sourceRevisions = sqliteTable("source_revisions", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  sourceDocumentId: integer("source_document_id")
+    .notNull()
+    .references(() => sourceDocuments.id, { onDelete: "cascade" }),
+  revisionNo: integer("revision_no").notNull(),
+  contentHtml: text("content_html").notNull(),
+  contentText: text("content_text").notNull().default(""),
+  note: text("note").notNull().default(""),
+  createdAt: integer("created_at").notNull().default(now()),
+});
+
+export type OutputFormatColumn =
+  | "x_single_post"
+  | "x_thread"
+  | "xiaohongshu_image_note"
+  | "wechat_article";
+
+/**
+ * 平台作品：某平台某格式的真实作品（§3.1）。
+ * 独立修订链与独立 readiness；rulesVersion 镜像活动修订的规则版本（便查询），
+ * 修订级的权威值在 platformOutputRevisions.rulesVersion。
+ */
+export const platformOutputs = sqliteTable("platform_outputs", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  creationId: integer("creation_id")
+    .notNull()
+    .references(() => creations.id, { onDelete: "cascade" }),
+  platform: text("platform", { enum: ["xiaohongshu", "x", "wechat"] }).notNull(),
+  format: text("format", {
+    enum: [
+      "x_single_post",
+      "x_thread",
+      "xiaohongshu_image_note",
+      "wechat_article",
+    ],
+  }).notNull(),
+  /** 活动修订指针（与修订表互为引用，无 FK，代码维护） */
+  activeRevisionId: integer("active_revision_id"),
+  /** 从通用稿哪个修订派生（可空 = 单平台直写或手工创建） */
+  sourceRevisionId: integer("source_revision_id").references(
+    () => sourceRevisions.id,
+    { onDelete: "set null" },
+  ),
+  /** output→output 适配溯源（FR-2.1「适配到另一个平台」一等操作） */
+  derivedFromOutputId: integer("derived_from_output_id"),
+  rulesVersion: text("rules_version").notNull(),
+  createdAt: integer("created_at").notNull().default(now()),
+  updatedAt: integer("updated_at").notNull().default(now()),
+});
+
+/**
+ * 作品修订：不可变快照。payloadJson 为 Zod 判别联合
+ * （src/lib/platform-rules/payloads.ts），落库前必须通过校验；
+ * rulesVersion 记录生成时的规则集版本（FR-0.2）。
+ */
+export const platformOutputRevisions = sqliteTable("platform_output_revisions", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  outputId: integer("output_id")
+    .notNull()
+    .references(() => platformOutputs.id, { onDelete: "cascade" }),
+  revisionNo: integer("revision_no").notNull(),
+  payloadJson: text("payload_json").notNull(),
+  schemaVersion: integer("schema_version").notNull(),
+  rulesVersion: text("rules_version").notNull(),
+  note: text("note").notNull().default(""),
+  createdAt: integer("created_at").notNull().default(now()),
+});
+
+export type OutputAssetRole =
+  | "cover"
+  | "first_image"
+  | "body_image"
+  | "post_media";
+
+/**
+ * 修订 ↔ 资产关联（§3.3）。结构（哪张图、什么顺序）以 payload 为权威、
+ * 由保存时派生；本表承载资产级元数据（alt/裁剪）与按资产反查。
+ */
+export const outputAssets = sqliteTable("output_assets", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  outputRevisionId: integer("output_revision_id")
+    .notNull()
+    .references(() => platformOutputRevisions.id, { onDelete: "cascade" }),
+  assetId: integer("asset_id")
+    .notNull()
+    .references(() => assets.id, { onDelete: "cascade" }),
+  role: text("role", {
+    enum: ["cover", "first_image", "body_image", "post_media"],
+  }).notNull(),
+  orderIndex: integer("order_index").notNull().default(0),
+  /** x_thread：所属帖文序号（0 起）；其他格式为 NULL */
+  postIndex: integer("post_index"),
+  altText: text("alt_text").notNull().default(""),
+  cropJson: text("crop_json"),
+  createdAt: integer("created_at").notNull().default(now()),
+});
+
+/**
+ * 发布记录：对某作品修订的不可变快照 + 可编辑元数据（FR-5.1）。
+ * outputRevisionId 一经写入不可变更；url/publishedAt/note 随时可补录修改。
+ */
+export const publications = sqliteTable("publications", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  outputId: integer("output_id")
+    .notNull()
+    .references(() => platformOutputs.id, { onDelete: "cascade" }),
+  outputRevisionId: integer("output_revision_id")
+    .notNull()
+    .references(() => platformOutputRevisions.id),
+  platform: text("platform", { enum: ["xiaohongshu", "x", "wechat"] }).notNull(),
+  url: text("url").notNull().default(""),
+  note: text("note").notNull().default(""),
+  publishedAt: integer("published_at").notNull(),
+  /** 显式「带风险发布」的记录（FR-1.4：阻断未清时需二次确认并记录） */
+  publishedWithRisk: integer("published_with_risk").notNull().default(0),
+  riskReason: text("risk_reason").notNull().default(""),
+  createdAt: integer("created_at").notNull().default(now()),
+});
+
+/**
+ * 表现快照：同一发布支持多时间点录入（FR-5.2）。
+ * metrics 为平台指标 JSON；daysSincePublish 记录「数据截至发布后 N 天」口径。
+ */
+export const performanceSnapshots = sqliteTable("performance_snapshots", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  publicationId: integer("publication_id")
+    .notNull()
+    .references(() => publications.id, { onDelete: "cascade" }),
+  metrics: text("metrics", { mode: "json" })
+    .$type<Record<string, number>>()
+    .notNull()
+    .default({}),
+  capturedAt: integer("captured_at").notNull(),
+  daysSincePublish: integer("days_since_publish").notNull().default(0),
+  note: text("note").notNull().default(""),
+  createdAt: integer("created_at").notNull().default(now()),
+});
+
 export type Material = typeof materials.$inferSelect;
 export type MaterialChunk = typeof materialChunks.$inferSelect;
 export type Collection = typeof collections.$inferSelect;
@@ -389,3 +592,11 @@ export type PlatformVariant = typeof platformVariants.$inferSelect;
 export type PublishTask = typeof publishTasks.$inferSelect;
 export type PublishResult = typeof publishResults.$inferSelect;
 export type RetroNote = typeof retroNotes.$inferSelect;
+export type Creation = typeof creations.$inferSelect;
+export type SourceDocument = typeof sourceDocuments.$inferSelect;
+export type SourceRevision = typeof sourceRevisions.$inferSelect;
+export type PlatformOutput = typeof platformOutputs.$inferSelect;
+export type PlatformOutputRevision = typeof platformOutputRevisions.$inferSelect;
+export type OutputAsset = typeof outputAssets.$inferSelect;
+export type Publication = typeof publications.$inferSelect;
+export type PerformanceSnapshot = typeof performanceSnapshots.$inferSelect;

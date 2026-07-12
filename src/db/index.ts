@@ -28,10 +28,18 @@ function createDb() {
   const findingCols = sqlite
     .prepare("PRAGMA table_info(review_findings)")
     .all() as { name: string }[];
+  const reviewCols = sqlite
+    .prepare("PRAGMA table_info(reviews)")
+    .all() as { name: string }[];
+  const assetCols = sqlite
+    .prepare("PRAGMA table_info(assets)")
+    .all() as { name: string }[];
   for (const statement of compatibilityMigrationSql({
     articles: articleCols.map((c) => c.name),
     platformVariants: variantCols.map((c) => c.name),
     reviewFindings: findingCols.map((c) => c.name),
+    reviews: reviewCols.map((c) => c.name),
+    assets: assetCols.map((c) => c.name),
   })) {
     sqlite.exec(statement);
   }
