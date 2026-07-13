@@ -3,7 +3,25 @@
 ## Muse v1.0 — PRD 落地（M1 进行中）
 
 **Last Updated:** 2026-07-13
-**Active Feature:** 无 —— feat-029、feat-030 已完成；下一个为 feat-031（X 单条 + Thread 编辑器）
+**Active Feature:** 无 —— feat-029/030/031 已完成；下一个为 feat-032（小红书图文笔记 + 项目资产池）
+
+### feat-031 完成证据
+
+- **实现**：`src/actions/platform-outputs.ts`（createXOutput 表单 action / saveOutputRevisionAction / markOutputPublishedAction，全部走 lib 核心服务端校验）；`/creations`、`/creations/[id]`（作品清单：就绪「检查通过」/「N 项阻断」Badge、派生自通用稿/直接创作标注、新建 X 单条/Thread、小红书与公众号占位文案）；`/creations/[id]/outputs/[outputId]` + `components/outputs/x-output-workbench.tsx`（三视图 + 发布助手 + 页底发布记录列表）；`outputFormatLabel` 进 lib/labels。DESIGN.md 补「平台作品工作台」规范。
+- **验证**：`bun test tests` 191/191；`./init.sh` 单次完整退出 0（typecheck / ESLint 0 警告 / build / DESIGN lint 0 errors）。
+- **浏览器证据**（工具偏差说明：Browser 面板的 preview_start 因上游分类器长时间不可用，按既有先例改用 playwright-cli 驱动 + 临时后台 dev server 3457，验证后已停止进程）：新建测试 Thread #5 → 141 汉字实时计数「282/280 超出 2」红色（rgb(220,38,38)）、检查 tab 红角标、检查条目「第 1 条加权字符 282/280，超出 2，需要删减（阻碍发布）」红色；327 JS 字符含 300 字符长 URL 的文本计 36/280（t.co=23）不阻断；dirty 时「带风险发布…」禁用并提示先保存；保存 r2 → 带风险流（原因必填、确认键联动）→ 发布记录显示「带风险发布 + 链接待补充 + 风险说明」；修正超限 → r3 → 正常「标记已发布」带 URL 成功；逐条复制剪贴板内容与顺序逐字核对正确、进度「已复制 1/2，下一条 ↓」、待复制行紫边（rgb(124,58,237)）、全部复制 ✓；上移/下移交换 textarea 顺序并可还原；刷新后 r3 持久；种子单条 #4 计数 79/280、页底种子发布记录（已发布 + 07/10 + URL）、一键复制 + 「再次标记会生成新记录」提示；375px 编辑/检查视图 scrollWidth=375、1280px=1280；console 0 error（仅既有 favicon 404 资源提示）。
+- **数据清理**：验收测试作品 #5 及其 2 条发布记录按 ID 删除（先删 publications 再删 output 级联修订），dev 库恢复种子原状（4 作品 / 1 发布 / 4 修订 / r1×4）；种子数据按契约作为长期开发夹具保留。
+- **已知限制**：X 媒体附件 UI 依赖项目资产池，随 feat-032 交付（payload 中已有媒体引用被编辑器保留不丢失）；发布记录的元数据编辑界面（FR-5.1 补链接/时间）随 feat-035；/creations 未进全局导航（feat-034 切换收口）。
+
+### feat-031 实现前契约
+
+- **范围**：第一个消费新模型的 UI。`/creations`（列表，过渡期直接访问入口，不进全局导航——导航切换随 feat-034）、`/creations/[id]`（项目页：作品清单 + 新建 X 单条/Thread；小红书/公众号作品显示「编辑器随后续版本提供」）、`/creations/[id]/outputs/[outputId]`（X 作品工作台三视图）。媒体附件 UI 依赖项目资产池（FR-1.5），随 feat-032 交付——本轮编辑器保留 payload 中已有媒体引用不丢失，只提示「随后续版本开放」；feat-031 验收（超 280 阻断/URL 计数/逐条复制）均不依赖媒体。
+- **actions**（src/actions/platform-outputs.ts）：createXOutput（表单 action，新建空白作品→redirect 编辑器；Thread 初始 2 条空帖）、saveOutputRevisionAction（直调，返回服务端权威 check + 修订号/复用标记）、markOutputPublishedAction（直调，返回 error+blockers 或 publicationId）。校验语义全在 lib 核心，action 不信任客户端。
+- **实时性**：字符余量与发布检查在客户端用与服务端同一套纯函数（parseXText/checkPlatformOutput，twitter-text 可在浏览器运行）实时计算；保存与发布走服务端权威校验。发布冻结的是已保存修订，故**有未保存修改时发布按钮禁用**并提示先保存（客户端所见 ≠ 已存快照的诚实处理）。
+- **三视图**：编辑（单条：文本+计数+内部备注「仅 Muse 内可见，不会发布到 X」；Thread：分条卡片、增删、上移/下移、每条独立计数）/ 平台预览（时间线样式、Thread 竖线串联、URL 主色高亮、占位头像帐号）/ 发布检查（checklist 红✕阻断/琥珀!提醒/灰✓通过 + 规则版本脚注 + 发布助手）。
+- **发布助手**：单条一键复制；Thread 逐条复制（待复制行高亮、进度「已复制 k/N，下一条 ↓」、复制完成行降透明度）；clipboard 失败回退 prompt 手动复制（沿用 feat-026 惯例）。标记已发布：链接可留空后补；检查未通过时主按钮替换为「带风险发布…」→ 展开原因必填卡片 + danger 确认（服务端记录 published_with_risk + risk_reason）。发布成功后 router.refresh 显示页面底部发布记录（含带风险 Badge 与风险说明）。
+- **失败路径**：保存失败红字反馈且本地编辑状态不丢；发布被服务端拒绝回显原因与阻断项；beforeunload 在 dirty 时提示；作品 payload 损坏时页面显示明确文案不伪造。
+- **验证门槛**：typecheck/lint/build/DESIGN lint 全绿（DESIGN.md 已补工作台规范）；浏览器验收——超 280 加权字符红色阻断（每条独立）、含 URL 文本按 t.co 23 计数（naive 超长可就绪）、Thread 逐条复制顺序正确、发布拦截与带风险路径、未保存禁发、375/1280 无溢出、控制台 0 error。dev 库使用 db:seed 演示数据（作为长期开发夹具保留，验证中新建的记录按 ID 清理）。
 
 ### feat-030 实现前契约（破坏式数据重构 · 数据地基阶段）
 

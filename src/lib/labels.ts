@@ -57,3 +57,11 @@ export const citationValidityLabel: Record<
   "source-changed": { text: "来源已变化", tone: "warning" },
   "source-missing": { text: "来源已删除", tone: "danger" },
 };
+
+/** v1.0 平台作品格式的界面文案（feat-031 起） */
+export const outputFormatLabel: Record<string, { platform: string; format: string }> = {
+  x_single_post: { platform: "X", format: "单条帖文" },
+  x_thread: { platform: "X", format: "Thread" },
+  xiaohongshu_image_note: { platform: "小红书", format: "图文笔记" },
+  wechat_article: { platform: "公众号", format: "图文文章" },
+};
